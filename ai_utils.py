@@ -1,27 +1,40 @@
 import streamlit as st
 import requests
 import concurrent.futures
-from langchain_google_genai import ChatGoogleGenerativeAI
+from google import genai # Google API 클라이언트 직접 사용
+from google.genai.errors import APIError
+
+# API Key 유효성 체크 함수는 그대로 유지
+def check_api_key_validity(api_key):
+    try:
+        client = genai.Client(api_key=api_key)
+        client.models.list()
+        return True
+    except Exception:
+        return False
 
 def ask_ai(prompt, user_key=None):
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
     if not api_key: return "⚠️ API 키가 설정되지 않았습니다."
     
+    # LangChain 대신 Google Client를 직접 초기화하고 사용
     try:
-        # 모델 명칭을 'gemini-1.5-flash'로 단순화하여 호출
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash", 
-            google_api_key=api_key,
-            temperature=0.7
+        client = genai.Client(api_key=api_key)
+        
+        # 가장 안정적인 gemini-pro 모델을 사용
+        response = client.models.generate_content(
+            model='gemini-pro',
+            contents=prompt,
+            config={'temperature': 0.7}
         )
-        return llm.invoke(prompt).content
+        return response.text
+        
+    except APIError as e:
+        # API 오류 (404, 권한 등)
+        return f"❌ AI 호출 실패: API 오류 발생. 키 유효성 또는 권한을 확인해주세요. (에러: {e})"
     except Exception as e:
-        # 만약 에러가 또 나면 최신 버전 별칭인 'gemini-1.5-flash-latest'로 재시도
-        try:
-            llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", google_api_key=api_key)
-            return llm.invoke(prompt).content
-        except:
-            return f"❌ AI 호출 실패: {str(e)}"
+        # 기타 오류
+        return f"❌ AI 호출 실패: 예상치 못한 오류 발생. (에러: {e})"
 
 # --- 플랫폼별 데이터 수집 함수들 ---
 

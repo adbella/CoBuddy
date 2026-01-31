@@ -94,12 +94,24 @@ with st.sidebar:
     st.markdown(f"### 👋 {st.session_state.user_nick}님 반가워요!")
     
     # AI 설정
-    with st.expander("🔑 AI 설정", expanded=False):
-        user_key = st.text_input("Gemini API Key 입력", type="password", key="user_gemini_key")
-        if user_key: st.success("키 적용 완료")
-
-    st.divider()
+    st.markdown("### 🔑 API 설정")
+    user_key = st.text_input("Gemini API Key 입력", type="password", key="user_gemini_key", help="Google AI Studio에서 발급받은 API 키를 입력하세요.")
     
+    # API 키 생성 링크 추가
+    st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
+    
+    # API 키 유효성 체크
+    if user_key or st.secrets.get("GOOGLE_API_KEY"):
+        checked_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
+        if ai.check_api_key_validity(checked_key):
+             st.success("✅ API 키 유효성 확인됨.")
+        else:
+             st.error("⚠️ 키가 유효하지 않거나 권한이 없습니다.")
+    else:
+        st.info("💡 키를 입력하지 않으면 시스템 기본 설정을 사용합니다.")
+    
+    st.divider()
+
     # PDF 업로드 영역 (UI 개선)
     st.markdown("### 📚 스마트 PDF 학습")
     st.info("여기에 공부할 PDF 파일을 올려주세요. 코버디가 분석해 드릴게요!")
@@ -122,9 +134,6 @@ with st.sidebar:
             st.caption(f"📍 현재 학습 중: {pdf_file.name}")
 
     st.divider()
-    if st.button("🚪 로그아웃", key="logout_btn", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
 
 # --- [로그인 후 메인 화면 사이드바 하단] ---
 with st.sidebar:
@@ -139,7 +148,7 @@ with st.sidebar:
     else:
         show_admin = False
     
-    if st.button("🚪 로그아웃", key="logout_btn", use_container_width=True):
+    if st.button("🚪 로그아웃", key=key="sidebar_logout_btn", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
@@ -158,9 +167,9 @@ if show_admin:
     st.write("### 🛠️ 전체 사용자 스킬 현황")
     st.dataframe(s_list, use_container_width=True)
     
-    if st.button("대시보드 닫기"):
-        st.rerun()
-    st.divider()
+    if st.button("대시보드 닫기", key="close_admin_btn"): # 키 변경
+    st.session_state.show_admin = False
+    st.rerun()
 
 # --- 메인 채팅창 ---
 if not st.session_state.messages:

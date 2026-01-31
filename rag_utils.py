@@ -2,15 +2,10 @@ import streamlit as st
 import tempfile
 import os
 
-# 라이브러리 임포트 (함수 외부)
-try:
-    from langchain_huggingface import HuggingFaceEmbeddings
-    from langchain_community.document_loaders import PyPDFLoader
-    from langchain_community.vectorstores import FAISS
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
-except ImportError as e:
-    # 임포트 실패 시 에러 메시지만 출력하고 넘어가도록 처리
-    pass
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.vectorstores import FAISS
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 def process_pdf(uploaded_file):
     """업로드된 PDF를 처리하여 검색기(Retriever)를 반환하는 함수"""
