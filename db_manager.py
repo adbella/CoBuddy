@@ -19,91 +19,113 @@ def get_db_connection():
                 connect_timeout=10
             )
     except Exception as e:
-        print(f"DB 연결 실패: {e}")
-    
+        pass
     return sqlite3.connect('cobuddy.db', check_same_thread=False)
 
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    # 1. 만약 기존에 잘못 생성된 테이블이 있다면 삭제 (초기 1회 권장)
-    # 아래 DROP 구문은 처음 한 번만 실행하고 나중에 주석 처리해도 됩니다.
-    cursor.execute("DROP TABLE IF EXISTS my_skills")
-    cursor.execute("DROP TABLE IF EXISTS users")
-
-    # 2. MySQL과 SQLite 모두 호환되는 엄격한 문법
-    # VARCHAR 길이 지정 및 NOT NULL 명시
+    # VARCHAR 길이를 명확히 지정하여 MySQL 호환성 확보
     queries = [
         """
         CREATE TABLE IF NOT EXISTS users (
-            user_id VARCHAR(50) NOT NULL,
-            nickname VARCHAR(100) NOT NULL,
+            user_id VARCHAR(50) PRIMARY KEY,
+            nickname VARCHAR(100) UNIQUE,
             password_hash VARCHAR(255),
-            last_login VARCHAR(50),
-            PRIMARY KEY (user_id),
-            UNIQUE (nickname)
+            last_login VARCHAR(50)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """,
         """
         CREATE TABLE IF NOT EXISTS my_skills (
-            user_id VARCHAR(50) NOT NULL,
-            skill_name VARCHAR(100) NOT NULL,
-            level INTEGER NOT NULL,
-            added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            user_id VARCHAR(50),
+            skill_name VARCHAR(100),
+            level INTEGER,
+            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (user_id, skill_name)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         """
     ]
-    
     try:
         if isinstance(conn, sqlite3.Connection):
-            # SQLite용 문법으로 살짝 변경 (ENGINE 설정 제거)
             for q in queries:
-                q_lite = q.split("ENGINE=")[0].replace("DATETIME DEFAULT CURRENT_TIMESTAMP", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-                cursor.execute(q_lite)
+                cursor.execute(q.split("ENGINE=")[0])
         else:
-            # MySQL용 실행
             for q in queries:
                 cursor.execute(q)
-        
-        if hasattr(conn, 'commit'):
-            conn.commit()
-        print("✅ DB 초기화 및 테이블 생성 완료")
-    except Exception as e:
-        print(f"❌ DB 초기화 에러: {e}")
+        conn.commit()
     finally:
         conn.close()
 
-# --- 아래 함수들은 기존과 동일 (수정 불필요하지만 전체 코드 유지를 위해 포함) ---
-
-def authenticate_user(nickname, password):
+def save_skill(user_id, skill, level):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # ID와 스킬명에서 혹시 모를 공백 제거
+        user_id = str(user_id).strip()
+        skill = str(skill).strip()
+        
         if not isinstance(conn, sqlite3.Connection):
-            query = "SELECT * FROM users WHERE nickname = %s"
+            # MySQL 전용: INSERT ... ON DUPLICATE KEY UPDATE
+            query = """
+                INSERT INTO my_skills (user_id, skill_name, level) 
+                VALUES (%s, %s, %s) 
+                ON DUPLICATE KEY UPDATE level = %s
+            """
+            cursor.execute(query, (user_id, skill, level, level))
         else:
-            query = "SELECT * FROM users WHERE nickname = ?"
-        cursor.execute(query, (nickname,))
-        user = cursor.fetchone()
-        if user and isinstance(user, sqlite3.Row): user = dict(user)
-        if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
-            return user
-        return None
-    finally: conn.close()
+            # SQLite 전용
+            query = "INSERT OR REPLACE INTO my_skills (user_id, skill_name, level) VALUES (?, ?, ?)"
+            cursor.execute(query, (user_id, skill, level))
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"저장 실패: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_my_skills(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        user_id = str(user_id).strip()
+        is_mysql = not isinstance(conn, sqlite3.Connection)
+        
+        query = "SELECT skill_name, level FROM my_skills WHERE user_id = %s" if is_mysql else "SELECT skill_name, level FROM my_skills WHERE user_id = ?"
+        cursor.execute(query, (user_id,))
+        rows = cursor.fetchall()
+        
+        if not rows:
+            db_type = "MySQL" if is_mysql else "SQLite"
+            # 디버깅을 위해 현재 조회 시도한 ID의 앞 4자리만 살짝 표시
+            return f"🐣 등록된 스킬이 없어요. (DB: {db_type} / ID: {user_id[:4]}...)\n'**파이썬 5**'처럼 입력해보세요!"
+
+        res = "### 📋 현재 당신의 기술 스택\n\n"
+        for r in rows:
+            # Row 객체나 Dict 객체 모두 대응하도록 처리
+            name = r['skill_name'] if is_mysql else dict(r)['skill_name']
+            lv = r['level'] if is_mysql else dict(r)['level']
+            gauge = "🔥" * lv + "⚪" * (10-lv)
+            res += f"**{name}** (Lv.{lv})  \n{gauge}\n\n"
+        return res
+    except Exception as e:
+        return f"❌ 조회 에러: {e}"
+    finally:
+        conn.close()
+
+# --- 기타 인증 함수들 (기본 로직 유지하되 commit 보강) ---
 
 def create_user(nickname, password):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        q_check = "SELECT nickname FROM users WHERE nickname = %s" if not isinstance(conn, sqlite3.Connection) else "SELECT nickname FROM users WHERE nickname = ?"
-        cursor.execute(q_check, (nickname,))
-        if cursor.fetchone(): return False, "이미 존재하는 닉네임입니다."
         user_id = str(uuid.uuid4())[:16]
         pw_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        q_ins = "INSERT INTO users (user_id, nickname, password_hash) VALUES (%s, %s, %s)" if not isinstance(conn, sqlite3.Connection) else "INSERT INTO users (user_id, nickname, password_hash) VALUES (?, ?, ?)"
-        cursor.execute(q_ins, (user_id, nickname, pw_hash))
+        if not isinstance(conn, sqlite3.Connection):
+            cursor.execute("INSERT INTO users (user_id, nickname, password_hash) VALUES (%s, %s, %s)", (user_id, nickname, pw_hash))
+        else:
+            cursor.execute("INSERT INTO users (user_id, nickname, password_hash) VALUES (?, ?, ?)", (user_id, nickname, pw_hash))
         conn.commit()
         return True, user_id
     except Exception as e: return False, str(e)
@@ -114,10 +136,12 @@ def get_or_create_google_user(email, name):
     cursor = conn.cursor()
     try:
         nickname = email.split('@')[0]
-        q_find = "SELECT * FROM users WHERE nickname = %s" if not isinstance(conn, sqlite3.Connection) else "SELECT * FROM users WHERE nickname = ?"
-        cursor.execute(q_find, (nickname,))
+        q = "SELECT * FROM users WHERE nickname = %s" if not isinstance(conn, sqlite3.Connection) else "SELECT * FROM users WHERE nickname = ?"
+        cursor.execute(q, (nickname,))
         user = cursor.fetchone()
-        if user: return True, user['user_id'] if not isinstance(conn, sqlite3.Connection) else dict(user)['user_id']
+        if user:
+            return True, user['user_id'] if not isinstance(conn, sqlite3.Connection) else dict(user)['user_id']
+        
         user_id = str(uuid.uuid4())[:16]
         q_ins = "INSERT INTO users (user_id, nickname, password_hash) VALUES (%s, %s, %s)" if not isinstance(conn, sqlite3.Connection) else "INSERT INTO users (user_id, nickname, password_hash) VALUES (?, ?, ?)"
         cursor.execute(q_ins, (user_id, nickname, "GOOGLE_OAUTH"))
@@ -125,57 +149,20 @@ def get_or_create_google_user(email, name):
         return True, user_id
     finally: conn.close()
 
-def get_my_skills(user_id):
-    """사용자의 스킬 목록을 더 확실하게 가져오는 방식"""
+def authenticate_user(nickname, password):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        is_mysql = not isinstance(conn, sqlite3.Connection)
-        # DB 유형에 맞는 쿼리문 선택
-        query = "SELECT skill_name, level FROM my_skills WHERE user_id = %s" if is_mysql else "SELECT skill_name, level FROM my_skills WHERE user_id = ?"
-        
-        cursor.execute(query, (user_id,))
-        rows = cursor.fetchall()
-        
-        if not rows:
-            db_type = "MySQL" if is_mysql else "SQLite"
-            return f"🐣 아직 등록된 스킬이 없어요. (연결된 DB: {db_type})\n'**파이썬 5**' 처럼 입력해보세요!"
-        
-        res = "### 📋 현재 당신의 기술 스택\n\n"
-        for r in rows:
-            # MySQL(dict)과 SQLite(Row) 양쪽 모두 대응
-            s_name = r['skill_name']
-            s_lv = r['level']
-            gauge = "🔥" * s_lv + "⚪" * (10 - s_lv)
-            res += f"**{s_name}** (Lv.{s_lv})  \n{gauge}\n\n"
-        return res
-    except Exception as e:
-        return f"❌ 조회 중 오류 발생: {e}"
-    finally:
-        conn.close()
+        q = "SELECT * FROM users WHERE nickname = %s" if not isinstance(conn, sqlite3.Connection) else "SELECT * FROM users WHERE nickname = ?"
+        cursor.execute(q, (nickname,))
+        user = cursor.fetchone()
+        if not user: return None
+        if isinstance(conn, sqlite3.Connection): user = dict(user)
+        if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+            return user
+        return None
+    finally: conn.close()
 
-def save_skill(user_id, skill, level):
-    """데이터 저장 후 커밋을 더 확실하게 처리"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        if not isinstance(conn, sqlite3.Connection):
-            # MySQL용 UPSERT
-            query = "INSERT INTO my_skills (user_id, skill_name, level) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE level = %s"
-            cursor.execute(query, (user_id, skill, level, level))
-        else:
-            # SQLite용 UPSERT
-            query = "INSERT OR REPLACE INTO my_skills (user_id, skill_name, level) VALUES (?, ?, ?)"
-            cursor.execute(query, (user_id, skill, level))
-        
-        # 반드시 commit을 호출해야 DB에 실제 반영됩니다.
-        conn.commit()
-        return True
-    except Exception as e:
-        print(f"저장 에러: {e}")
-        return False
-    finally:
-        conn.close()
 def get_admin_stats():
     conn = get_db_connection()
     try:
