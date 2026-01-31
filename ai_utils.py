@@ -3,6 +3,8 @@ import requests
 import concurrent.futures
 from google.genai import Client
 from google.genai.errors import APIError
+from google import genai
+
 def check_api_key_validity(api_key):
     try:
         client = genai.Client(api_key=api_key)
@@ -10,7 +12,7 @@ def check_api_key_validity(api_key):
         return True
     except Exception:
         return False
-        
+
 def ask_ai_stream(prompt, user_key=None):
     """AI에게 질문하고 답변을 실시간 스트림으로 받는 함수 (타이핑 효과용)"""
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
