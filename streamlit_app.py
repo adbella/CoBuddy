@@ -110,28 +110,18 @@ if st.session_state.user_id: # 로그인 성공 후
         if "user_key_value" not in st.session_state: st.session_state.user_key_value = default_key
             
         effective_key = st.session_state.user_key_value
-        user_input_key = None # 🌟🌟🌟 NameError 방지용 초기값 설정 🌟🌟🌟
+        user_input_key = None # NameError 방지용 초기값 설정
 
         # 1. 키 입력창 노출 조건 및 마스킹
         if st.session_state.show_key_input or not effective_key:
-            
             masked_key = "********" if effective_key else ""
-            
-            user_input_key = st.text_input( # 👈 여기서 user_input_key가 정의됨
-                "Gemini API Key 입력", 
-                type="password", 
-                value=masked_key, 
-                key="user_gemini_key_input",
-                help="여기에 키를 입력하거나 수정하세요."
-            )
-
-            # 새 키를 입력했을 때 처리
+            user_input_key = st.text_input(
+                "Gemini API Key 입력", type="password", value=masked_key, key="user_gemini_key_input", help="여기에 키를 입력하거나 수정하세요.")
             if user_input_key and user_input_key != masked_key:
                 st.session_state.user_key_value = user_input_key 
                 st.session_state.show_key_input = False
                 st.rerun()
-                
-            if effective_key: # 키를 숨길 때 사용할 '취소' 버튼
+            if effective_key:
                 if st.button("입력 취소", key="cancel_key_input"):
                     st.session_state.show_key_input = False
                     st.rerun()
@@ -140,20 +130,15 @@ if st.session_state.user_id: # 로그인 성공 후
         else: 
             st.success("✅ API 키 적용 완료. (AI 기능 사용 가능)")
             st.caption("키는 보안을 위해 숨김 처리되었습니다.")
-            
             if st.button("키 수정/변경", key="modify_key_btn"):
                 st.session_state.show_key_input = True
                 st.rerun()
 
-        # user_key 변수 업데이트 (메인 로직에서 사용할 최종 키)
-        if st.session_state.show_key_input and user_input_key and user_input_key != "********":
-             user_key = user_input_key # 사용자가 입력 중인 새 키
-        else:
-             user_key = effective_key # 세션에 저장된 키
-        
+        # user_key 변수 업데이트
+        user_key = effective_key
         st.divider()
 
-        # PDF 업로드 영역 (UI 개선)
+        # PDF 업로드 영역
         st.markdown("### 📚 스마트 PDF 학습")
         st.info("여기에 공부할 PDF 파일을 올려주세요. 모든 파일이 누적되어 분석됩니다.")
         
