@@ -1,78 +1,80 @@
 import streamlit as st
 import requests
-import json
 import concurrent.futures
+import json
 
 def get_best_available_model(api_key):
-    """
-    API 키를 사용하여 현재 사용 가능한 모델 목록을 조회하고,
-    가장 성능이 좋은 모델(Flash > Pro 순)을 자동으로 선택합니다.
-    """
+    """(기존과 동일) 사용 가능한 최적의 모델 찾기"""
     url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
             data = response.json()
             models = data.get('models', [])
+            chat_models = [m['name'].replace('models/', '') for m in models if 'generateContent' in m.get('supportedGenerationMethods', [])]
             
-            # 'generateContent' 기능을 지원하는 모델만 필터링
-            chat_models = [
-                m['name'].replace('models/', '') 
-                for m in models 
-                if 'generateContent' in m.get('supportedGenerationMethods', [])
-            ]
+            if not chat_models: return "gemini-pro"
             
-            if not chat_models:
-                return "gemini-pro" # 검색 실패 시 기본값
-            
-            # 우선순위: 1.5-flash > 1.5-pro > 1.0-pro > 그 외
+            # 우선순위: Flash > 1.5 Pro > 1.0 Pro
             for m in chat_models:
                 if '1.5-flash' in m: return m
             for m in chat_models:
                 if '1.5-pro' in m: return m
-            for m in chat_models:
-                if '1.0-pro' in m: return m
-                
-            return chat_models[0] # 아무거나 되는 거 반환
-            
-    except Exception as e:
-        print(f"모델 조회 실패: {e}")
-    
-    return "gemini-pro" # 에러 발생 시 최후의 수단
+            return chat_models[0]
+    except: pass
+    return "gemini-pro"
 
 def ask_ai(prompt, user_key=None):
-    """REST API 직접 호출 (자동 모델 선택)"""
+    """(기존 유지) 한 번에 답변 받기 - 요약용"""
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
-    if not api_key: return "⚠️ API 키가 설정되지 않았습니다."
+    if not api_key: return "⚠️ API 키가 없습니다."
+    
+    model_name = get_best_available_model(api_key)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    headers = {'Content-Type': 'application/json'}
+    data = {"contents": [{"parts": [{"text": prompt}]}]}
+    
+    try:
+        response = requests.post(url, headers=headers, json=data, timeout=15)
+        if response.status_code == 200:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        return f"❌ 오류: {response.text}"
+    except Exception as e: return f"❌ 오류: {e}"
 
-    # 1. 사용 가능한 최적의 모델 찾기
+def ask_ai_stream(prompt, user_key=None):
+    """(신규) 실시간 타이핑 효과를 위한 스트리밍 함수"""
+    api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
+    if not api_key:
+        yield "⚠️ API 키가 설정되지 않았습니다."
+        return
+
     model_name = get_best_available_model(api_key)
     
-    # 2. API 호출
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    # 🌟 alt=sse 옵션으로 스트리밍 요청 🌟
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent?key={api_key}&alt=sse"
     headers = {'Content-Type': 'application/json'}
     data = {"contents": [{"parts": [{"text": prompt}]}]}
 
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=15)
+        # stream=True로 연결을 유지하며 데이터 받기
+        response = requests.post(url, headers=headers, json=data, stream=True)
         
-        if response.status_code == 200:
-            result = response.json()
-            try:
-                return result['candidates'][0]['content']['parts'][0]['text']
-            except (KeyError, IndexError):
-                return "❌ AI 응답 해석 실패. (빈 응답)"
-        else:
-            # 에러 상세 정보 파싱
-            err_msg = response.text
-            try:
-                err_json = response.json()
-                err_msg = err_json.get('error', {}).get('message', err_msg)
-            except: pass
-            return f"❌ AI 호출 에러 ({model_name}): {err_msg}"
-
+        for line in response.iter_lines():
+            if line:
+                decoded_line = line.decode('utf-8')
+                # SSE 데이터 파싱 ("data: " 로 시작하는 줄)
+                if decoded_line.startswith('data: '):
+                    try:
+                        json_str = decoded_line[6:] # "data: " 제거
+                        if json_str.strip() == '[DONE]': break
+                        
+                        chunk = json.loads(json_str)
+                        text_chunk = chunk['candidates'][0]['content']['parts'][0]['text']
+                        yield text_chunk
+                    except:
+                        continue
     except Exception as e:
-        return f"❌ 시스템 오류: {str(e)}"
+        yield f"❌ 스트리밍 오류: {e}"
 
 # --- 플랫폼별 데이터 수집 함수들 (기존 유지) ---
 def get_github_data(query):
