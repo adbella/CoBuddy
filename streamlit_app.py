@@ -241,7 +241,7 @@ if st.session_state.user_id: # 로그인 성공 후
 # 8. 채팅 UI
 if not st.session_state.get("show_admin"):
     # ... (채팅 UI 로직) ...
-    if not st.session_state.messages:
+if not st.session_state.messages:
     # 온보딩 가이드
     st.markdown("""
         ### 👋 반가워요! 코버디와 이렇게 대화해보세요.
