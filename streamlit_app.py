@@ -152,25 +152,30 @@ if st.session_state.user_id: # 로그인 성공 후
 
         # PDF 업로드 영역 (UI 개선)
         st.markdown("### 📚 스마트 PDF 학습")
-        st.info("여기에 공부할 PDF 파일을 올려주세요. 코버디가 분석해 드릴게요!")
-        
-        pdf_file = st.file_uploader(
-            "파일 업로드 (PDF 전용)", 
-            type=["pdf"], 
-            key="pdf_uploader",
-            label_visibility="collapsed"
-        )
-        
-        if pdf_file:
-            if "cur_pdf" not in st.session_state or st.session_state.cur_pdf != pdf_file.name:
-                with st.spinner("코버디가 문서를 읽고 있어요... 📖"):
-                    st.session_state.retriever = rag.process_pdf(pdf_file)
-                    st.session_state.cur_pdf = pdf_file.name
-                    st.success(f"✅ 학습 완료: {pdf_file.name}")
-            else:
-                st.caption(f"📍 현재 학습 중: {pdf_file.name}")
+    st.info("여기에 공부할 PDF 파일을 **여러 개** 올려주세요. 모든 파일을 통합 분석해 드릴게요!") # 문구 수정
+    
+    # 🌟🌟🌟 accept_multiple_files=True 추가 🌟🌟🌟
+    uploaded_files = st.file_uploader(
+        "파일 업로드 (PDF 전용)", 
+        type=["pdf"], 
+        key="pdf_uploader",
+        accept_multiple_files=True, # 다중 파일 업로드 허용
+        label_visibility="collapsed"
+    )
+    
+    if uploaded_files: # 리스트로 넘어옵니다.
+        # 파일 목록이 바뀌었을 때만 재분석
+        current_names = sorted([f.name for f in uploaded_files])
+        if st.session_state.get("current_pdf_list") != current_names:
+            with st.spinner(f"코버디가 {len(uploaded_files)}개의 문서를 읽고 있어요... 📖"):
+                # 🌟🌟🌟 다중 파일 처리 함수 호출 🌟🌟🌟
+                st.session_state.retriever = rag.process_multiple_pdfs(uploaded_files)
+                st.session_state.current_pdf_list = current_names
+                st.success(f"✅ {len(uploaded_files)}개 문서 통합 학습 완료!")
+        else:
+            st.caption(f"📍 현재 학습 중인 문서: {len(uploaded_files)}개")
 
-        st.divider()
+    st.divider()
 
         # 관리자 메뉴
         is_admin = st.session_state.user_nick in ["안종호"] 
