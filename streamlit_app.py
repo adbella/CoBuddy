@@ -256,43 +256,50 @@ if st.session_state.user_id:
 
     # 사용자 입력 처리
     if prompt := st.chat_input("무엇이든 물어보세요!"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-        with st.chat_message("assistant"):
-            with st.spinner("코버디가 생각 중... 🐣"):
-                res = "" 
-                
-                # 입력값이 문자열인지 안전 확인
-                if isinstance(prompt, str):
-                    # 1. 스킬 목록 (DB)
-                    if prompt in ["목록", "조회", "스킬", "내 스킬"]:
-                        res = db.get_my_skills(st.session_state.user_id)
-                    
-                    # 2. 스킬 저장 (DB)
-                    elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
-                        s, l = prompt.split()
-                        db.save_skill(st.session_state.user_id, s, int(l))
-                        res = f"✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
-                    
-                    # 3. AI 답변 (RAG, 검색, 일반 대화)
-                    else:
-                        # (A) 검색/추천
-                        if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
-                            res = ai.search_all_platforms(prompt, user_key)
-                        
-                        # (B) PDF 질문
-                        elif "retriever" in st.session_state and st.session_state.retriever:
-                            docs = st.session_state.retriever.invoke(prompt)
-                            ctx = "\n".join([d.page_content for d in docs])
-                            res = ai.ask_ai(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
-                        
-                        # (C) 일반 대화
-                        else:
-                            res = ai.ask_ai(prompt, user_key)
-                else:
-                    res = "⚠️ 잘못된 입력입니다. 다시 시도해 주세요."
-
-                st.markdown(res)
-                st.session_state.messages.append({"role": "assistant", "content": res})
+    with st.chat_message("assistant"):
+        # 1. 스킬 목록 (DB 기능 - 즉시 출력)
+        if prompt in ["목록", "조회", "스킬", "내 스킬"]:
+            res = db.get_my_skills(st.session_state.user_id)
+            st.markdown(res)
+            st.session_state.messages.append({"role": "assistant", "content": res})
+            
+        # 2. 스킬 저장 (DB 기능 - 즉시 출력)
+        elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
+            s, l = prompt.split()
+            db.save_skill(st.session_state.user_id, s, int(l))
+            res = f"✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
+            st.markdown(res)
+            st.session_state.messages.append({"role": "assistant", "content": res})
+        
+        # 3. AI 답변 (실시간 스트리밍 적용)
+        else:
+            stream_generator = None
+            
+            # (A) 검색/추천
+            if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
+                # 수집 중에는 스피너 표시
+                with st.spinner("🔍 최신 정보를 수집하고 있어요..."):
+                    # search_all_platforms는 이제 generator(스트리밍 객체)를 반환함
+                    stream_generator = ai.search_all_platforms(prompt, user_key)
+            
+            # (B) PDF 질문
+            elif "retriever" in st.session_state and st.session_state.retriever:
+                with st.spinner("📄 문서 내용을 분석 중..."):
+                    docs = st.session_state.retriever.invoke(prompt)
+                    ctx = "\n".join([d.page_content for d in docs])
+                    stream_generator = ai.ask_ai_stream(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
+            
+            # (C) 일반 대화
+            else:
+                # 일반 대화는 바로 타이핑 시작
+                stream_generator = ai.ask_ai_stream(prompt, user_key)
+            
+            # 🌟🌟🌟 실시간 타이핑 효과 출력 (st.write_stream) 🌟🌟🌟
+            if stream_generator:
+                full_response = st.write_stream(stream_generator)
+                # 스트리밍이 끝난 후 전체 텍스트를 대화 기록에 저장
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
