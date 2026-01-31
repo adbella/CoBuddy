@@ -119,8 +119,9 @@ if not st.session_state.user_id:
 
 # 7. 로그인 후 로직
 if st.session_state.user_id:
-    if st.session_state
-
+    if st.session_state.show_admin:
+        st.stop()   
+    
     # B. PDF 업로드
     st.markdown(f"### {t('pdf_title')}")
     st.info(t('pdf_info'))
