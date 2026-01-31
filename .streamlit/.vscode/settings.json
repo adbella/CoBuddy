@@ -1,0 +1,18 @@
+// .vscode/settings.json
+{
+    // 파이썬 언어 서버 설정: Pylance를 사용해 더 똑똑하게 분석합니다.
+    "python.languageServer": "Pylance",
+    // Pylint(가장 널리 쓰이는 문법 검사기) 활성화
+    "python.linting.pylintEnabled": true,
+    // 모든 파일을 저장할 때마다 자동으로 포맷을 맞춰줍니다. (들여쓰기 오류 방지)
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "ms-python.python",
+    // Pylint 설정: 들여쓰기 오류 발생 시 경고가 아닌 에러로 표시
+    "python.linting.pylintArgs": [
+        "--errors-only",
+        "--disable=C0114,C0115,C0116" // 함수 설명 주석(Docstrings) 같은 불필요한 경고는 제외
+    ],
+    // 들여쓰기를 공백 4칸으로 강제하여 통일성을 유지합니다.
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true
+}

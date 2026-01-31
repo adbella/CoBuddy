@@ -10,6 +10,32 @@ def check_api_key_validity(api_key):
         return True
     except Exception:
         return False
+        
+def ask_ai_stream(prompt, user_key=None):
+    """AI에게 질문하고 답변을 실시간 스트림으로 받는 함수 (타이핑 효과용)"""
+    api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
+    if not api_key:
+        yield "⚠️ API 키가 설정되지 않았습니다."
+        return
+
+    try:
+        # Client 초기화
+        client = Client(api_key=api_key)
+        
+        # 🌟🌟🌟 stream=True 인자를 제거하고, Streaming API로 직접 호출 🌟🌟🌟
+        # 이 방식이 Models.generate_content()에서 stream 인자를 사용할 때 발생하는
+        # TypeError를 가장 확실하게 해결합니다.
+        response_stream = client.models.generate_content(
+                model='gemini-pro', # 안정적인 gemini-pro 사용
+                contents=prompt,
+                stream=True,        # Streaming API는 이 인자가 필요함
+                config={'temperature': 0.7}
+            )
+        for chunk in response_stream:
+            yield chunk.text
+            
+    except Exception as e:
+        yield f"❌ AI 호출 실패: {e}"
 
 def ask_ai(prompt, user_key=None):
     """AI에게 질문하고 전체 답변을 한 번에 받는 함수 (내부 요약용)"""
@@ -19,36 +45,13 @@ def ask_ai(prompt, user_key=None):
     try:
         client = Client(api_key=api_key)
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-pro', # gemini-pro로 통일
             contents=prompt,
             config={'temperature': 0.7}
         )
         return response.text
     except Exception as e:
         return f"❌ AI 호출 실패: {e}"
-
-def ask_ai_stream(prompt, user_key=None):
-    """AI에게 질문하고 답변을 실시간 스트림으로 받는 함수 (타이핑 효과용)"""
-    api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
-    if not api_key:
-        yield "⚠️ API 키가 설정되지 않았습니다."
-        return
-
-    try:
-        client = Client(api_key=api_key)
-        # 🌟🌟🌟 들여쓰기 수정됨 (client 아래 4칸, response_stream 아래 4칸) 🌟🌟🌟
-        response_stream = client.models.generate_content(
-                model='gemini-1.5-flash',
-                contents=prompt,
-                stream=True,
-                config={'temperature': 0.7}
-            )
-        for chunk in response_stream:
-            yield chunk.text
-            
-    except Exception as e:
-        yield f"❌ AI 호출 실패: {e}"
-
 # --- 플랫폼별 데이터 수집 함수들 ---
 
 def get_github_data(query):
