@@ -12,45 +12,19 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. 커스텀 CSS (UX/UI 디자인 개선)
+# 2. 커스텀 CSS (부드러운 디자인)
 st.markdown("""
     <style>
-    /* 전체 배경색 */
-    .stApp { background-color: #f8f9fa; }
-    
-    /* 채팅창 스타일링 */
-    .stChatMessage { 
-        padding: 1rem; 
-        border-radius: 15px; 
-        margin-bottom: 10px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-    /* 사용자 말풍선 (약간 진한 배경) */
-    .stChatMessage[data-testid="stChatMessageUser"] {
-        background-color: #e3f2fd;
-        border-left: 5px solid #42a5f5;
-    }
-    /* 코버디 말풍선 (흰색 배경) */
-    .stChatMessage[data-testid="stChatMessageAssistant"] {
-        background-color: #ffffff;
-        border-left: 5px solid #ffca28;
-    }
-    
-    /* 버튼 스타일 */
-    .stButton>button { 
-        border-radius: 20px; 
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        transform: scale(1.02);
-    }
+    .main { background-color: #f9f9fb; }
+    .stChatMessage { border-radius: 15px; margin-bottom: 10px; }
+    .stChatMessage[data-testid="stChatMessageUser"] { background-color: #e3f2fd; }
+    .stChatMessage[data-testid="stChatMessageAssistant"] { background-color: #ffffff; border: 1px solid #eee; }
     </style>
 """, unsafe_allow_html=True)
 
 # 3. DB 및 세션 초기화
 db.init_db()
 
-# 세션 상태값 초기화
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "messages" not in st.session_state: st.session_state.messages = []
 if "show_admin" not in st.session_state: st.session_state.show_admin = False
@@ -86,7 +60,7 @@ if "code" in st.query_params and st.session_state.user_id is None:
 # 5. 로그인 전 화면
 if not st.session_state.user_id:
     st.markdown("<h1 style='text-align: center;'>🐣 코버디</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #666; font-size: 1.1em;'>코딩 공부가 막막할 때, 당신의 곁을 지키는 성장 단짝</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: gray;'>코딩 공부가 막막할 때, 당신의 곁을 지키는 성장 단짝</p>", unsafe_allow_html=True)
     st.divider()
     
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -270,33 +244,32 @@ if st.session_state.user_id:
                 st.markdown(res)
                 st.session_state.messages.append({"role": "assistant", "content": res})
             
-            # 3. AI 답변 (상태 메시지 추가)
+            # 3. AI 답변 (상태 메시지 + 스트리밍)
             else:
                 stream_generator = None
                 
-                # (A) 검색/추천 (시간이 걸리므로 상태창 표시)
+                # (A) 검색/추천 (상태창 표시)
                 if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
-                    # 🌟🌟🌟 상태창(status)으로 진행 상황을 시각적으로 보여줌 🌟🌟🌟
                     with st.status("🔍 전 세계 개발자 커뮤니티를 검색 중입니다...", expanded=True) as status:
                         st.write("GitHub 탐색 중...")
                         st.write("HuggingFace 모델 확인 중...")
+                        # 스트리밍 제너레이터를 반환받음
                         stream_generator = ai.search_all_platforms(prompt, user_key)
                         status.update(label="✅ 자료 수집 완료! 답변을 작성합니다.", state="complete", expanded=False)
                 
-                # (B) PDF 질문
+                # (B) PDF 질문 (스피너 표시)
                 elif "retriever" in st.session_state and st.session_state.retriever:
-                    # 🌟🌟🌟 스피너로 분석 중임을 표시 🌟🌟🌟
                     with st.spinner("📄 문서를 꼼꼼히 읽고 있어요..."):
                         docs = st.session_state.retriever.invoke(prompt)
                         ctx = "\n".join([d.page_content for d in docs])
                         stream_generator = ai.ask_ai_stream(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
                 
-                # (C) 일반 대화
+                # (C) 일반 대화 (짧은 스피너)
                 else:
-                    # 🌟🌟🌟 일반 대화도 짧은 스피너 표시 🌟🌟🌟
                     with st.spinner("코버디가 생각 중... 🐣"):
                         stream_generator = ai.ask_ai_stream(prompt, user_key)
                 
+                # 🌟 실시간 타이핑 효과 (st.write_stream) 🌟
                 if stream_generator:
                     full_response = st.write_stream(stream_generator)
                     st.session_state.messages.append({"role": "assistant", "content": full_response})
