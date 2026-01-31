@@ -12,23 +12,18 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. 커스텀 CSS (부드러운 디자인)
+# 2. 커스텀 CSS
 st.markdown("""
     <style>
     .main { background-color: #f9f9fb; }
     .stButton>button { border-radius: 8px; }
     .stTextInput>div>div>input { border-radius: 8px; }
-    .skill-card { 
-        padding: 10px; border-radius: 10px; background-color: white; 
-        border: 1px solid #eee; margin-bottom: 10px;
-    }
     </style>
 """, unsafe_allow_html=True)
 
 # 3. DB 및 세션 초기화
 db.init_db()
 
-# 세션 상태값 초기화
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "messages" not in st.session_state: st.session_state.messages = []
 if "show_admin" not in st.session_state: st.session_state.show_admin = False
@@ -38,7 +33,7 @@ if "show_key_input" not in st.session_state: st.session_state.show_key_input = F
 if "user_key_value" not in st.session_state: st.session_state.user_key_value = st.secrets.get("GOOGLE_API_KEY", "")
 
 
-# 4. 구글 로그인 콜백 처리
+# 4. 구글 로그인 콜백
 if "code" in st.query_params and st.session_state.user_id is None:
     code = st.query_params["code"]
     try:
@@ -58,10 +53,10 @@ if "code" in st.query_params and st.session_state.user_id is None:
                 st.query_params.clear()
                 st.rerun()
     except Exception as e:
-        st.error(f"로그인 처리 중 오류: {e}")
+        st.error(f"로그인 오류: {e}")
 
 
-# 5. 로그인 전 화면 (가장 먼저 실행)
+# 5. 로그인 전 화면
 if not st.session_state.user_id:
     st.markdown("<h1 style='text-align: center;'>🐣 코버디</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: gray;'>코딩 공부가 막막할 때, 당신의 곁을 지키는 성장 단짝</p>", unsafe_allow_html=True)
@@ -107,19 +102,16 @@ if not st.session_state.user_id:
 # 6. 로그인 후 로직 (사이드바 + 메인 화면)
 if st.session_state.user_id:
     
-    # ---------------------------------------------------------
-    # [사이드바] 모든 사이드바 요소는 이 블록 안에 있어야 함
-    # ---------------------------------------------------------
+    # [사이드바]
     with st.sidebar:
         st.markdown(f"### 👋 {st.session_state.user_nick}님 반가워요!")
         
-        # --- A. API 키 설정 ---
+        # A. API 키 설정
         st.markdown("### 🔑 API 설정")
         st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
         
         effective_key = st.session_state.user_key_value
         
-        # 키 입력창 표시 조건: 키가 없거나, 수정 모드일 때
         if st.session_state.show_key_input or not effective_key:
             masked_key = "********" if effective_key else ""
             user_input_key = st.text_input(
@@ -130,31 +122,26 @@ if st.session_state.user_id:
                 help="여기에 키를 입력하거나 수정하세요."
             )
             
-            # 새 키 저장
             if user_input_key and user_input_key != masked_key:
                 st.session_state.user_key_value = user_input_key 
                 st.session_state.show_key_input = False
                 st.rerun()
             
-            # 취소 버튼 (기존 키가 있을 때만)
             if effective_key:
                 if st.button("입력 취소", key="cancel_key_input"):
                     st.session_state.show_key_input = False
                     st.rerun()
         else:
-            # 키가 잘 적용된 상태
             st.success("✅ API 키 적용 완료. (AI 기능 사용 가능)")
             st.caption("키는 보안을 위해 숨김 처리되었습니다.")
             if st.button("키 수정/변경", key="modify_key_btn"):
                 st.session_state.show_key_input = True
                 st.rerun()
         
-        # 메인 로직에서 사용할 최종 키
         user_key = effective_key
-        
         st.divider()
 
-        # --- B. PDF 업로드 ---
+        # B. PDF 업로드
         st.markdown("### 📚 스마트 PDF 학습")
         st.info("여기에 공부할 PDF 파일을 올려주세요. 모든 파일이 누적되어 분석됩니다.")
         
@@ -188,8 +175,7 @@ if st.session_state.user_id:
 
         st.divider()
 
-        # --- C. 관리자 메뉴 ---
-        # 본인의 닉네임으로 정확히 수정하세요
+        # C. 관리자 메뉴
         is_admin = st.session_state.user_nick in ["안종호", "관리자"] 
         if is_admin:
             st.markdown("### 👑 관리자 메뉴")
@@ -197,26 +183,22 @@ if st.session_state.user_id:
 
         st.divider()
         
-        # --- D. 로그아웃 ---
+        # D. 로그아웃
         if st.button("🚪 로그아웃", key="sidebar_logout_btn", use_container_width=True): 
             st.session_state.clear()
             st.rerun()
 
 
-    # ---------------------------------------------------------
-    # [메인 화면 1] 관리자 대시보드 (켜져 있을 때만 표시)
-    # ---------------------------------------------------------
+    # [메인 화면 1] 관리자 대시보드
     if st.session_state.get("show_admin"):
         st.title("📊 관리자 대시보드")
-        
-        # DB에서 통계 가져오기
         u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
         
         col1, col2 = st.columns(2)
         with col1: st.metric("총 가입자 수", f"{u_cnt}명")
         with col2: st.metric("총 등록 스킬", f"{s_cnt}개")
         
-        st.write("### 👥 사용자 목록 (구글 로그인 정보 포함)")
+        st.write("### 👥 사용자 목록")
         if u_list.empty:
             st.info("데이터가 없습니다.")
         else:
@@ -231,16 +213,11 @@ if st.session_state.user_id:
         if st.button("채팅으로 돌아가기", key="close_admin_chat_btn"):
             st.session_state.show_admin = False
             st.rerun()
-        
-        # 관리자 화면일 때는 채팅창 숨김
-        st.stop() 
+        st.stop()
 
 
-    # ---------------------------------------------------------
-    # [메인 화면 2] 채팅 UI (관리자 화면이 아닐 때만 표시)
-    # ---------------------------------------------------------
+    # [메인 화면 2] 채팅 UI
     if not st.session_state.messages:
-        # 온보딩 가이드
         st.markdown("""
             ### 👋 반가워요! 코버디와 이렇게 대화해보세요.
             1. **스킬 관리**: `파이썬 5`라고 입력하면 실력을 저장해드려요. `목록`이라고 치면 확인 가능해요!
@@ -249,57 +226,47 @@ if st.session_state.user_id:
         """)    
         st.info("💡 팁: 아래 채팅창에 질문을 입력하거나 '파이썬 5'를 입력해 보세요.")
 
-    # 대화 기록 표시
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    # 사용자 입력 처리
     if prompt := st.chat_input("무엇이든 물어보세요!"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            # 1. 스킬 목록 (DB 기능 - 즉시 출력)
+            # 1. 스킬 목록
             if prompt in ["목록", "조회", "스킬", "내 스킬"]:
                 res = db.get_my_skills(st.session_state.user_id)
                 st.markdown(res)
                 st.session_state.messages.append({"role": "assistant", "content": res})
             
-            # 2. 스킬 저장 (DB 기능 - 즉시 출력)
+            # 2. 스킬 저장
             elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
                 s, l = prompt.split()
                 db.save_skill(st.session_state.user_id, s, int(l))
                 res = f"✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
-            st.markdown(res)
-            st.session_state.messages.append({"role": "assistant", "content": res})
-        
-        # 3. AI 답변 (실시간 스트리밍 적용)
+                st.markdown(res)
+                st.session_state.messages.append({"role": "assistant", "content": res})
+            
+            # 3. AI 답변 (실시간 스트리밍)
             else:
-            stream_generator = None
-            
-            # (A) 검색/추천
-            if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
-                # 수집 중에는 스피너 표시
-                with st.spinner("🔍 최신 정보를 수집하고 있어요..."):
-                    # search_all_platforms는 이제 generator(스트리밍 객체)를 반환함
-                    stream_generator = ai.search_all_platforms(prompt, user_key)
-            
-            # (B) PDF 질문
-            elif "retriever" in st.session_state and st.session_state.retriever:
-                with st.spinner("📄 문서 내용을 분석 중..."):
-                    docs = st.session_state.retriever.invoke(prompt)
-                    ctx = "\n".join([d.page_content for d in docs])
-                    stream_generator = ai.ask_ai_stream(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
-            
-            # (C) 일반 대화
-            else:
-                # 일반 대화는 바로 타이핑 시작
-                stream_generator = ai.ask_ai_stream(prompt, user_key)
-            
-            # 🌟🌟🌟 실시간 타이핑 효과 출력 (st.write_stream) 🌟🌟🌟
-            if stream_generator:
-                full_response = st.write_stream(stream_generator)
-                # 스트리밍이 끝난 후 전체 텍스트를 대화 기록에 저장
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
+                stream_generator = None
+                
+                if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
+                    with st.spinner("🔍 최신 정보를 수집하고 있어요..."):
+                        stream_generator = ai.search_all_platforms(prompt, user_key)
+                
+                elif "retriever" in st.session_state and st.session_state.retriever:
+                    with st.spinner("📄 문서 내용을 분석 중..."):
+                        docs = st.session_state.retriever.invoke(prompt)
+                        ctx = "\n".join([d.page_content for d in docs])
+                        stream_generator = ai.ask_ai_stream(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
+                
+                else:
+                    stream_generator = ai.ask_ai_stream(prompt, user_key)
+                
+                if stream_generator:
+                    full_response = st.write_stream(stream_generator)
+                    st.session_state.messages.append({"role": "assistant", "content": full_response})
