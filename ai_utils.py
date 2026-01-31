@@ -13,32 +13,6 @@ def check_api_key_validity(api_key):
     except Exception:
         return False
 
-def ask_ai_stream(prompt, user_key=None):
-    """AI에게 질문하고 답변을 실시간 스트림으로 받는 함수 (타이핑 효과용)"""
-    api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
-    if not api_key:
-        yield "⚠️ API 키가 설정되지 않았습니다."
-        return
-
-    try:
-        # Client 초기화
-        client = Client(api_key=api_key)
-        
-        # 🌟🌟🌟 stream=True 인자를 제거하고, Streaming API로 직접 호출 🌟🌟🌟
-        # 이 방식이 Models.generate_content()에서 stream 인자를 사용할 때 발생하는
-        # TypeError를 가장 확실하게 해결합니다.
-        response_stream = client.models.generate_content(
-                model='gemini-pro', # 안정적인 gemini-pro 사용
-                contents=prompt,
-                stream=True,        # Streaming API는 이 인자가 필요함
-                config={'temperature': 0.7}
-            )
-        for chunk in response_stream:
-            yield chunk.text
-            
-    except Exception as e:
-        yield f"❌ AI 호출 실패: {e}"
-
 def ask_ai(prompt, user_key=None):
     """AI에게 질문하고 전체 답변을 한 번에 받는 함수 (내부 요약용)"""
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
@@ -91,7 +65,7 @@ def get_devto_data(query):
     except: return ""
 
 # --- 통합 검색 및 요약 함수 (스트리밍 지원) ---
-def search_all_platforms(message, user_key=None, stream=False):
+def search_all_platforms(message, user_key=None):
     query = message.replace("추천", "").replace("찾아줘", "").replace("검색", "").strip()
     if not query: query = "new programming projects"
 
@@ -119,8 +93,5 @@ def search_all_platforms(message, user_key=None, stream=False):
     한국어로 답변하고, 초보자가 이해하기 쉽게 설명해주세요.
     마지막엔 '오늘도 당신의 성장을 코버디가 응원해요! 🔥'라고 말해주세요.
     """
-    # 🌟🌟🌟 스트리밍 여부에 따라 다른 함수 호출 🌟🌟🌟
-    if stream:
-        return ask_ai_stream(prompt, user_key)
-    else:
-        return ask_ai(prompt, user_key)
+
+    return ask_ai(prompt, user_key) # ask_ai(비-스트리밍) 호출

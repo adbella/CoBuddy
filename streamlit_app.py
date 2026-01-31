@@ -258,34 +258,27 @@ if not st.session_state.get("show_admin"):
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        with st.chat_message("assistant"):
-            # 1. 스킬 목록 (스트리밍 불필요)
+    with st.chat_message("assistant"):
+        with st.spinner("코버디가 생각 중... 🐣"):
+            # 1. 스킬 목록 (이전과 동일)
             if prompt in ["목록", "조회", "스킬", "내 스킬"]:
                 res = db.get_my_skills(st.session_state.user_id)
-                st.markdown(res)
-                st.session_state.messages.append({"role": "assistant", "content": res})
-            # 2. 스킬 저장 (스트리밍 불필요)
+            # 2. 스킬 저장 (이전과 동일)
             elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
                 s, l = prompt.split()
                 db.save_skill(st.session_state.user_id, s, int(l))
                 res = f"✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
-                st.markdown(res)
-                st.session_state.messages.append({"role": "assistant", "content": res})
-            
+        
             # 3. AI 답변이 필요한 모든 경우 (스트리밍 적용)
             else:
-                with st.spinner("코버디가 생각 중... 🐣"):
-                    # 추천 검색이든 일반 질문이든 모두 스트리밍으로 처리
-                    if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
-                        stream = ai.search_all_platforms(prompt, user_key, stream=True)
-                    elif "retriever" in st.session_state and st.session_state.retriever:
-                        docs = st.session_state.retriever.invoke(prompt)
-                        ctx = "\n".join([d.page_content for d in docs])
-                        stream = ai.ask_ai_stream(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
-                    else:
-                        stream = ai.ask_ai_stream(prompt, user_key)
-                    
-                    full_response = st.write_stream(stream)
-                    
-                    # 전체 응답을 세션에 저장
-                    st.session_state.messages.append({"role": "assistant", "content": full_response})
+                if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
+                    res = ai.search_all_platforms(prompt, user_key) # 비-스트리밍 호출
+                elif "retriever" in st.session_state and st.session_state.retriever:
+                    docs = st.session_state.retriever.invoke(prompt)
+                    ctx = "\n".join([d.page_content for d in docs])
+                    res = ai.ask_ai(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key) # 비-스트리밍 호출
+                else:
+                    res = ai.ask_ai(prompt, user_key) # 비-스트리밍 호출
+                
+            st.markdown(res)
+            st.session_state.messages.append({"role": "assistant", "content": res})
