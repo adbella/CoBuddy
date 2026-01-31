@@ -4,7 +4,7 @@ import ai_utils as ai
 import rag_utils as rag
 import urllib.parse
 import requests
-from languages import TRANS # 🌟 languages.py에서 TRANS 가져오기
+from languages import TRANS
 
 # 1. 페이지 설정
 st.set_page_config(
@@ -13,15 +13,14 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. 언어 설정 함수
+# 2. 언어 설정 및 CSS
 if "language" not in st.session_state:
     st.session_state.language = "KR"
 
 def t(key):
-    """현재 언어에 맞는 텍스트 반환"""
-    return TRANS[st.session_state.language].get(key, "Key Error")
+    """현재 언어에 맞는 텍스트 반환 (키 누락 시 키 이름 반환)"""
+    return TRANS[st.session_state.language].get(key, f"[{key}]")
 
-# 3. 커스텀 CSS
 st.markdown("""
     <style>
     .main { background-color: #f9f9fb; }
@@ -33,12 +32,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🌟 세션 상태에 api_exhausted 초기화 (코드 상단 초기화 부분에 추가 권장)
-if "api_exhausted" not in st.session_state:
-    st.session_state.api_exhausted = False
-# 4. DB 및 세션 초기화
+# 3. DB 및 세션 초기화
 db.init_db()
 
+# 세션 상태값 초기화
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "messages" not in st.session_state: st.session_state.messages = []
 if "show_admin" not in st.session_state: st.session_state.show_admin = False
@@ -46,8 +43,9 @@ if "uploaded_file_list" not in st.session_state: st.session_state.uploaded_file_
 if "processed_file_names" not in st.session_state: st.session_state.processed_file_names = set()
 if "show_key_input" not in st.session_state: st.session_state.show_key_input = False
 if "user_key_value" not in st.session_state: st.session_state.user_key_value = st.secrets.get("GOOGLE_API_KEY", "")
+if "api_exhausted" not in st.session_state: st.session_state.api_exhausted = False
 
-# 🌟 상단 언어 선택 버튼 (우측 상단) 🌟
+# 🌟 상단 언어 선택 버튼 (우측 상단)
 col_main, col_lang = st.columns([8, 1])
 with col_lang:
     lang_code = st.selectbox(
@@ -57,7 +55,7 @@ with col_lang:
     )
     st.session_state.language = lang_code
 
-# 5. 구글 로그인 콜백
+# 4. 구글 로그인 콜백 처리
 if "code" in st.query_params and st.session_state.user_id is None:
     code = st.query_params["code"]
     try:
@@ -78,7 +76,7 @@ if "code" in st.query_params and st.session_state.user_id is None:
                 st.rerun()
     except: pass
 
-# 6. 로그인 전 화면
+# 5. 로그인 전 화면
 if not st.session_state.user_id:
     st.markdown(f"<h1 style='text-align: center;'>{t('title')}</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='text-align: center; color: gray;'>{t('subtitle')}</p>", unsafe_allow_html=True)
@@ -117,17 +115,18 @@ if not st.session_state.user_id:
             else: st.info(t('secrets_needed'))
     st.stop()
 
-# 7. 로그인 후 로직
+# 6. 로그인 후 로직 (사이드바 + 메인 화면)
 if st.session_state.user_id:
+    
+    # ---------------- 사이드바 고정 ----------------
     with st.sidebar:
-        # 🌟 API 소진 시 최상단에 경고 표시
+        # API 소진 경고
         if st.session_state.api_exhausted:
             st.error(t('api_limit_reached'))
 
-        st.markdown(f"### {t('welcome')} {st.session_state.user_nick}!")
-
+        st.markdown(f"### 👋 {t('welcome')} {st.session_state.user_nick}!")
+        
         # A. API 키 설정
-        # 할당량 초과 시 사용자가 바로 수정할 수 있게 자동으로 열어둡니다(expanded=True).
         with st.expander(t('api_setup'), expanded=st.session_state.api_exhausted):
             st.markdown(f"**:red[{t('api_no_key')}]** [Link](https://aistudio.google.com/app/apikey) {t('api_make_here')}")
             
@@ -135,16 +134,11 @@ if st.session_state.user_id:
             
             if st.session_state.show_key_input or not effective_key:
                 masked_key = "********" if effective_key else ""
-                user_input_key = st.text_input(
-                    t('api_placeholder'), 
-                    type="password", 
-                    value=masked_key, 
-                    key="user_gemini_key_input"
-                )
+                user_input_key = st.text_input(t('api_placeholder'), type="password", value=masked_key, key="user_gemini_key_input")
                 
                 if user_input_key and user_input_key != masked_key:
                     st.session_state.user_key_value = user_input_key 
-                    st.session_state.api_exhausted = False # 🌟 새 키 입력 시 경고 해제
+                    st.session_state.api_exhausted = False
                     st.session_state.show_key_input = False
                     st.rerun()
                 
@@ -159,20 +153,20 @@ if st.session_state.user_id:
         
         user_key = st.session_state.user_key_value
         st.divider()
+
+        # B. PDF 업로드
+        st.markdown(f"### {t('pdf_title')}")
+        st.info(t('pdf_info'))
+        new_uploaded_files = st.file_uploader(t('pdf_upload_label'), type=["pdf"], key="pdf_uploader", accept_multiple_files=True, label_visibility="collapsed")
         
-    # B. PDF 업로드
-    st.markdown(f"### {t('pdf_title')}")
-    st.info(t('pdf_info'))
-    new_uploaded_files = st.file_uploader(t('pdf_upload_label'), type=["pdf"], key="pdf_uploader", accept_multiple_files=True, label_visibility="collapsed")
-        
-    if new_uploaded_files: 
-        newly_added = [f for f in new_uploaded_files if f.name not in st.session_state.processed_file_names]
-        if newly_added:
-            st.session_state.uploaded_file_list.extend(newly_added)
-            for f in newly_added: st.session_state.processed_file_names.add(f.name)
-            with st.spinner(t('pdf_analyzing')):
-                st.session_state.retriever = rag.process_multiple_pdfs(st.session_state.uploaded_file_list)
-                st.success(t('pdf_done'))
+        if new_uploaded_files: 
+            newly_added = [f for f in new_uploaded_files if f.name not in st.session_state.processed_file_names]
+            if newly_added:
+                st.session_state.uploaded_file_list.extend(newly_added)
+                for f in newly_added: st.session_state.processed_file_names.add(f.name)
+                with st.spinner(t('pdf_analyzing')):
+                    st.session_state.retriever = rag.process_multiple_pdfs(st.session_state.uploaded_file_list)
+                    st.success(t('pdf_done'))
             
             if st.session_state.uploaded_file_list:
                 st.caption(f"📍 Docs: {len(st.session_state.uploaded_file_list)}")
@@ -183,7 +177,7 @@ if st.session_state.user_id:
         st.divider()
 
         # C. 관리자 메뉴
-        is_admin = st.session_state.user_nick in ["안종호"] 
+        is_admin = st.session_state.user_nick in ["안종호", "관리자", "adbella"] 
         if is_admin:
             st.markdown(f"### {t('admin_menu')}")
             st.session_state.show_admin = st.checkbox(t('admin_view'), key="admin_chk", value=st.session_state.show_admin)
@@ -192,9 +186,10 @@ if st.session_state.user_id:
         if st.button(t('logout'), key="sidebar_logout_btn", use_container_width=True): 
             st.session_state.clear()
             st.rerun()
-# ---------------------------------------------------------
-    # [메인 화면 1] 관리자 대시보드
-    # ---------------------------------------------------------
+
+    # ---------------- 메인 화면 영역 ----------------
+    
+    # [1] 관리자 대시보드
     if st.session_state.get("show_admin"):
         st.title("📊 Admin Dashboard")
         u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
@@ -208,10 +203,7 @@ if st.session_state.user_id:
             st.rerun()
         st.stop()
 
-
-    # ---------------------------------------------------------
-    # [메인 화면 2] 채팅 UI
-    # ---------------------------------------------------------
+    # [2] 채팅 UI
     if not st.session_state.messages:
         st.markdown(f"### {t('chat_guide_title')} {st.session_state.user_nick}!\n{t('chat_guide_desc')}")
         c1, c2, c3 = st.columns(3)
@@ -220,12 +212,12 @@ if st.session_state.user_id:
         with c3: st.warning(t('guide_doc'))
 
     for m in st.session_state.messages:
-        with st.chat_message(m["role"], avatar="🧑💻" if m["role"] == "user" else "🐣"):
+        with st.chat_message(m["role"], avatar="🧑‍💻" if m["role"] == "user" else "🐣"):
             st.markdown(m["content"])
-    
+
     if prompt := st.chat_input(t('chat_placeholder')):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user", avatar="🧑💻"):
+        with st.chat_message("user", avatar="🧑‍💻"):
             st.markdown(prompt)
 
         with st.chat_message("assistant", avatar="🐣"):
@@ -238,6 +230,7 @@ if st.session_state.user_id:
             res_text = None
             stream_gen = None
 
+            # A. 스킬 관련 (DB)
             if prompt in ["목록", "조회", "스킬", "내 스킬", "list", "skill", "skills"] or (len(prompt.split()) == 2 and prompt.split()[1].isdigit()):
                 status_placeholder.write(f"_{t('status_db_checking')}_")
                 if prompt in ["목록", "조회", "스킬", "내 스킬", "list", "skill", "skills"]:
@@ -248,6 +241,8 @@ if st.session_state.user_id:
                     res_text = t('save_skill').format(s=s, l=l)
                 status_placeholder.empty()
                 st.markdown(res_text)
+
+            # B. AI 관련 (Streaming)
             else:
                 if any(w in prompt.lower() for w in ["추천", "검색", "찾아줘", "자료", "recommend", "search", "find"]):
                     status_placeholder.empty()
@@ -258,14 +253,15 @@ if st.session_state.user_id:
                     status_placeholder.write(f"_{t('ai_reading')}_")
                     docs = st.session_state.retriever.invoke(prompt)
                     ctx = "\n".join([d.page_content for d in docs])
+                    status_placeholder.empty()
                     stream_gen = ai.ask_ai_stream(f"Context:\n{ctx}\n\nQuestion: {final_prompt}", user_key)
                 else:
                     status_placeholder.write(f"_{t('status_ai_calling')}_")
                     stream_gen = ai.ask_ai_stream(final_prompt, user_key)
+                    status_placeholder.empty()
 
-            if stream_gen:
-                status_placeholder.empty()
-                res_text = st.write_stream(stream_gen)
+                if stream_gen:
+                    res_text = st.write_stream(stream_gen)
 
             if res_text:
                 st.session_state.messages.append({"role": "assistant", "content": res_text})
