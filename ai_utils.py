@@ -98,8 +98,8 @@ def get_hf_data(query):
         res = requests.get(url, timeout=5).json()
         return "=== HuggingFace 인기 모델 ===\n" + "\n".join([f"- {m['modelId']}: https://huggingface.co/{m['modelId']}" for m in res])
     except: return ""
-
-def search_all_platforms(message, user_key=None):
+# 🌟 중요: target_lang 파라미터 추가 🌟
+def search_all_platforms(message, user_key=None, target_lang="Korean"):
     """검색은 먼저 수행하고, 결과 요약은 스트리밍으로 반환"""
     query = message.replace("추천", "").replace("찾아줘", "").replace("검색", "").strip()
     if not query: query = "programming"
@@ -119,7 +119,10 @@ def search_all_platforms(message, user_key=None):
     {all_raw_data}
     
     위 데이터를 바탕으로 '{message}'에 대해 답변해줘.
-    반드시 한국어로, 표 형식을 사용하여 정리해줘.
+    반드시 **{target_lang} (언어)**로, 표 형식을 사용하여 5개에서 최대 10개까지 관련있는 것을 정리해줘.
+    난이도는 색깔별로 초급은 초록색 중급은 노란색 고급은 빨간색으로 표시해줘.
+    제목과 내용을 3줄 이내로 요약해서 알기쉽게 설명하고 링크는 클릭할 수 있게 해줘.
+    마지막엔 '오늘도 당신의 성장을 코버디가 응원해요! 🔥'라고 말해줘.
     """
     
     # 2. 요약 결과는 스트리밍 함수 반환
