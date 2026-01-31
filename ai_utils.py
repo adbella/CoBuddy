@@ -1,55 +1,72 @@
 import streamlit as st
-import google.generativeai as genai
 import requests
+import json
 import concurrent.futures
 
 def check_api_key_validity(api_key):
+    """API 키 유효성 확인 (직접 호출 방식)"""
     if not api_key: return False
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    headers = {'Content-Type': 'application/json'}
+    data = {"contents": [{"parts": [{"text": "test"}]}]}
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
-        model.generate_content("test")
-        return True
+        response = requests.post(url, headers=headers, json=data)
+        return response.status_code == 200
     except:
         return False
 
 def ask_ai(prompt, user_key=None):
-    # 키 가져오기
+    """AI에게 질문하기 (REST API 직접 호출)"""
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
     if not api_key: return "⚠️ API 키가 설정되지 않았습니다."
-    
-    genai.configure(api_key=api_key)
-    
-    # 🌟 시도할 모델 목록 (우선순위 순서) 🌟
-    # 1.5 Flash가 안 되면 Pro로 자동 전환됩니다.
-    candidate_models = [
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-pro',
-        'gemini-1.0-pro'
+
+    # 1. 시도할 모델 URL 리스트 (순서대로 시도)
+    models = [
+        "gemini-1.5-flash",
+        "gemini-pro",
+        "gemini-1.5-pro-latest"
     ]
-    
+
+    headers = {'Content-Type': 'application/json'}
+    data = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+
     last_error = ""
-    
-    for model_name in candidate_models:
+
+    for model in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        
         try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt)
-            return response.text
+            response = requests.post(url, headers=headers, json=data, timeout=10)
+            
+            if response.status_code == 200:
+                result = response.json()
+                # 응답 텍스트 추출
+                try:
+                    return result['candidates'][0]['content']['parts'][0]['text']
+                except (KeyError, IndexError):
+                    return "❌ AI가 응답했지만 내용을 해석할 수 없습니다."
+            else:
+                # 400, 403, 404 등 에러 발생 시
+                error_info = response.json()
+                error_msg = error_info.get('error', {}).get('message', 'Unknown Error')
+                last_error = f"{model} 실패: {error_msg}"
+                continue # 다음 모델 시도
+
         except Exception as e:
             last_error = str(e)
-            continue # 실패하면 다음 모델 시도
-            
-    return f"❌ 모든 모델 호출 실패. API 키 권한을 확인해주세요.\n마지막 에러: {last_error}"
+            continue
 
-# --- 플랫폼별 데이터 수집 함수들 (기존 코드 유지) ---
+    return f"❌ 모든 모델 호출 실패. API 키를 다시 확인해주세요.\n(마지막 에러: {last_error})"
 
+# --- 플랫폼별 데이터 수집 함수들 (기존 유지) ---
 def get_github_data(query):
     try:
-        url = f"https://api.github.com/search/repositories?q={query}&sort=stars&order=desc"
+        url = f"https://api.github.com/search/repositories?q={query}&sort=stars&limit=3"
         res = requests.get(url, timeout=5).json()
-        items = res.get('items', [])[:3]
-        return "=== GitHub 추천 ===\n" + "\n".join([f"- {i['name']}: {i['html_url']}\n  ({i['description']})" for i in items])
+        items = res.get('items', [])[:2]
+        return "=== GitHub 추천 ===\n" + "\n".join([f"- {i['name']}: {i['html_url']}" for i in items])
     except: return ""
 
 def get_hf_data(query):
@@ -103,5 +120,5 @@ def search_all_platforms(message, user_key=None):
     한국어로 답변하고, 초보자가 이해하기 쉽게 설명해주세요.
     마지막엔 '오늘도 당신의 성장을 코버디가 응원해요! 🔥'라고 말해주세요.
     """
-    
+
     return ask_ai(prompt, user_key)
