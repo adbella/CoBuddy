@@ -4,37 +4,43 @@ import requests
 import concurrent.futures
 
 def check_api_key_validity(api_key):
-    """API 키 유효성 확인"""
     if not api_key: return False
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content("test")
+        model = genai.GenerativeModel('gemini-pro')
+        model.generate_content("test")
         return True
-    except Exception:
+    except:
         return False
 
 def ask_ai(prompt, user_key=None):
-    """AI에게 질문하기 (표준 라이브러리 사용)"""
-    # 키 우선순위: 유저 입력 키 > Secrets 키
+    # 키 가져오기
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
+    if not api_key: return "⚠️ API 키가 설정되지 않았습니다."
     
-    if not api_key:
-        return "⚠️ API 키가 설정되지 않았습니다."
+    genai.configure(api_key=api_key)
     
-    try:
-        # 라이브러리 설정
-        genai.configure(api_key=api_key)
-        
-        # 모델 설정 (가장 안정적인 gemini-1.5-flash 사용)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        # 답변 생성
-        response = model.generate_content(prompt)
-        return response.text
-        
-    except Exception as e:
-        return f"❌ AI 호출 실패: {str(e)}"
+    # 🌟 시도할 모델 목록 (우선순위 순서) 🌟
+    # 1.5 Flash가 안 되면 Pro로 자동 전환됩니다.
+    candidate_models = [
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-pro',
+        'gemini-1.0-pro'
+    ]
+    
+    last_error = ""
+    
+    for model_name in candidate_models:
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            last_error = str(e)
+            continue # 실패하면 다음 모델 시도
+            
+    return f"❌ 모든 모델 호출 실패. API 키 권한을 확인해주세요.\n마지막 에러: {last_error}"
 
 # --- 플랫폼별 데이터 수집 함수들 (기존 코드 유지) ---
 
@@ -71,7 +77,7 @@ def get_devto_data(query):
 
 def search_all_platforms(message, user_key=None):
     query = message.replace("추천", "").replace("찾아줘", "").replace("검색", "").strip()
-    if not query: query = "new programming projects"
+    if not query: query = "programming"
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [

@@ -2,7 +2,7 @@ streamlit
 pymysql
 bcrypt
 requests
-google-generativeai
+google-generativeai>=0.7.0
 langchain
 langchain-community
 faiss-cpu
