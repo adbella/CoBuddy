@@ -240,9 +240,7 @@ if st.session_state.user_id: # 로그인 성공 후
     st.stop() # 관리자 화면이 켜지면 여기서 앱 실행을 멈춤
 # 8. 채팅 UI
 if not st.session_state.get("show_admin"):
-    # ... (채팅 UI 로직) ...
-if not st.session_state.messages:
-    # 온보딩 가이드
+# 온보딩 가이드
     st.markdown("""
         ### 👋 반가워요! 코버디와 이렇게 대화해보세요.
         1. **스킬 관리**: `파이썬 5`라고 입력하면 실력을 저장해드려요. `목록`이라고 치면 확인 가능해요!
