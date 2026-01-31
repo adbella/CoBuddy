@@ -19,6 +19,18 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def init_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    queries = [
+        "CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, nickname TEXT UNIQUE, password_hash TEXT, last_login TEXT)",
+        "CREATE TABLE IF NOT EXISTS my_skills (user_id TEXT, skill_name TEXT, level INTEGER, added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, skill_name))"
+    ]
+    for q in queries:
+        cursor.execute(q)
+    if hasattr(conn, 'commit'): conn.commit()
+    conn.close()
+
 def create_user(nickname, password):
     """일반 회원가입"""
     conn = get_db_connection()

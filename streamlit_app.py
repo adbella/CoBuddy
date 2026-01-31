@@ -1,12 +1,11 @@
 import streamlit as st
-import database as db
+import db_manager as db  # database 대신 db_manager를 불러옵니다.
 import ai_utils as ai
 import rag_utils as rag
 import urllib.parse
 import requests
 
-# 페이지 설정
-st.set_page_config(page_title="코버디 🐣", layout="wide")
+st.set_page_config(page_title="코버디 🐣", layout="wide"
 
 # DB 초기화
 db.init_db()
