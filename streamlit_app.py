@@ -217,57 +217,8 @@ if not st.session_state.messages:
         1. **스킬 관리**: `파이썬 5`라고 입력하면 실력을 저장해드려요. `목록`이라고 치면 확인 가능해요!
         2. **실시간 추천**: `자바 프로젝트 추천해줘`라고 하면 GitHub, Reddit 등을 뒤져서 알려드려요.
         3. **문서 학습**: 왼쪽에서 PDF를 올리면 그 내용으로 시험 공부나 질문을 할 수 있어요.
-    """)
-    st.info("💡 팁: 아래 채팅창에 질문을 입력하거나 '파이썬 5'를 입력해 보세요.")
-
-# 대화 출력
-for m in st.session_state.messages:
-    with st.chat_message(m["role"]):
-        st.markdown(m["content"])
-
-# 입력 처리
-if prompt := st.chat_input("무엇이든 물어보세요!"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): st.markdown(prompt)
-
-    with st.chat_message("assistant"):
-        # 1. 스킬 목록
-        if prompt in ["목록", "조회", "스킬", "내 스킬"]:
-            res = db.get_my_skills(st.session_state.user_id)
-        # 2. 스킬 저장
-        elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
-            s, l = prompt.split()
-            db.save_skill(st.session_state.user_id, s, int(l))
-            res = f"✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
-        # 3. 실시간 추천/검색
-        elif any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
-            with st.status("🌐 여러 플랫폼에서 최신 정보를 수집하는 중...") as status:
-                res = ai.search_all_platforms(prompt, user_key)
-                status.update(label="✅ 검색 및 분석 완료!", state="complete")
-        # 4. PDF 답변
-        elif "retriever" in st.session_state and st.session_state.retriever:
-            with st.spinner("문서에서 정답을 찾는 중..."):
-                docs = st.session_state.retriever.invoke(prompt)
-                ctx = "\n".join([d.page_content for d in docs])
-                res = ai.ask_ai(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
-        # 5. 일반 질문
-        else:
-            res = ai.ask_ai(prompt, user_key)
-            
-        st.markdown(res)
-        st.session_state.messages.append({"role": "assistant", "content": res})
-
-# --- 메인 채팅창 ---
-if not st.session_state.messages:
-    # 온보딩 가이드
-    st.markdown("""
-        ### 👋 반가워요! 코버디와 이렇게 대화해보세요.
-        1. **스킬 관리**: `파이썬 5`라고 입력하면 실력을 저장해드려요. `목록`이라고 치면 확인 가능해요!
-        2. **실시간 추천**: `자바 프로젝트 추천해줘`라고 하면 GitHub, Reddit 등을 뒤져서 알려드려요.
-        3. **문서 학습**: 왼쪽에서 PDF를 올리면 그 내용으로 시험 공부나 질문을 할 수 있어요.
-    """)
-    st.info("💡 팁: 아래 채팅창에 질문을 입력하거나 왼쪽 '내 스킬 목록 보기' 버튼을 눌러보세요.")
-
+    """)    
+st.info("💡 팁: 아래 채팅창에 질문을 입력하거나 '파이썬 5'를 입력해 보세요.")
 # 대화 출력
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
