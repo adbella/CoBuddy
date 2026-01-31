@@ -2,13 +2,16 @@ import streamlit as st
 import requests
 import concurrent.futures
 from google.genai import Client
-from google import genai # Google API 클라이언트 직접 사용
-from google.genai.errors import APIError
 
-# API Key 유효성 체크 함수는 그대로 유지
+from google.genai.errors import APIError
+from google import genai
 def check_api_key_validity(api_key):
-    # API 호출이 에러를 일으키므로, 이 기능을 비활성화합니다.
-    return True # 그냥 True 반환하도록 수정
+    try:
+        client = genai.Client(api_key=api_key)
+        client.models.list()
+        return True
+    except Exception:
+        return False
 
 def ask_ai(prompt, user_key=None):
     """AI에게 질문하고 전체 답변을 한 번에 받는 함수 (내부 요약용)"""
@@ -35,17 +38,14 @@ def ask_ai_stream(prompt, user_key=None):
 
     try:
         client = Client(api_key=api_key)
-        # 🌟🌟🌟 stream=True 옵션을 사용하여 스트리밍 응답 요청 🌟🌟🌟
-        response_stream = client.models.generate_content(
+    response_stream = client.models.generate_content(
             model='gemini-1.5-flash',
             contents=prompt,
             stream=True,
             config={'temperature': 0.7}
         )
-        
-        # 스트림에서 각 텍스트 조각(chunk)을 실시간으로 반환(yield)
-        for chunk in response_stream:
-            yield chunk.text
+    for chunk in response_stream:
+        yield chunk.text
             
     except Exception as e:
         yield f"❌ AI 호출 실패: {e}"
@@ -86,6 +86,7 @@ def get_devto_data(query):
         return "=== Dev.to 기술 아티클 ===\n" + "\n".join([f"- {a['title']}: {a['url']}" for a in res])
     except: return ""
 
+# --- 통합 검색 및 요약 함수 (스트리밍 지원) ---
 def search_all_platforms(message, user_key=None, stream=False):
     query = message.replace("추천", "").replace("찾아줘", "").replace("검색", "").strip()
     if not query: query = "new programming projects"
