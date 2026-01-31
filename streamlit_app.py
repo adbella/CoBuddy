@@ -96,19 +96,14 @@ with st.sidebar:
     # AI 설정
     st.markdown("### 🔑 API 설정")
     user_key = st.text_input("Gemini API Key 입력", type="password", key="user_gemini_key", help="Google AI Studio에서 발급받은 API 키를 입력하세요.")
-    
-    # API 키 생성 링크 추가
     st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
     
-    # API 키 유효성 체크
-    if user_key or st.secrets.get("GOOGLE_API_KEY"):
-        checked_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
-        if ai.check_api_key_validity(checked_key):
-             st.success("✅ API 키 유효성 확인됨.")
-        else:
-             st.error("⚠️ 키가 유효하지 않거나 권한이 없습니다.")
+    # 🌟🌟🌟 유효성 체크 로직을 간단한 존재 유무 체크로 대체 🌟🌟🌟
+    has_api_key = user_key or st.secrets.get("GOOGLE_API_KEY")
+    if has_api_key:
+        st.success("✅ API 키 입력 확인됨. (AI 기능 사용 가능)")
     else:
-        st.info("💡 키를 입력하지 않으면 시스템 기본 설정을 사용합니다.")
+        st.info("💡 키를 입력하지 않으면 AI 기능이 작동하지 않습니다.")
     
     st.divider()
 
@@ -184,7 +179,7 @@ if st.session_state.get("show_admin"):
     # 🌟🌟🌟 ------------------------------------ 🌟🌟🌟
     
     st.stop() # 관리자 화면이 켜지면 여기서 앱 실행을 멈춤
-    
+
 # --- 메인 채팅창 ---
 if not st.session_state.messages:
     # 온보딩 가이드

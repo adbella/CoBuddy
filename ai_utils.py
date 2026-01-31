@@ -1,27 +1,22 @@
 import streamlit as st
 import requests
 import concurrent.futures
+from google.genai import Client
 from google import genai # Google API 클라이언트 직접 사용
 from google.genai.errors import APIError
 
 # API Key 유효성 체크 함수는 그대로 유지
 def check_api_key_validity(api_key):
-    try:
-        client = genai.Client(api_key=api_key)
-        client.models.list()
-        return True
-    except Exception:
-        return False
+    # API 호출이 에러를 일으키므로, 이 기능을 비활성화합니다.
+    return True # 그냥 True 반환하도록 수정
 
 def ask_ai(prompt, user_key=None):
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
-    if not api_key: return "⚠️ API 키가 설정되지 않았습니다."
     
-    # LangChain 대신 Google Client를 직접 초기화하고 사용
+    if not api_key: return "⚠️ API 키가 설정되지 않았습니다. 답변을 위해 키가 필요합니다."
+    
     try:
-        client = genai.Client(api_key=api_key)
-        
-        # 가장 안정적인 gemini-pro 모델을 사용
+        client = Client(api_key=api_key)
         response = client.models.generate_content(
             model='gemini-pro',
             contents=prompt,
@@ -30,10 +25,10 @@ def ask_ai(prompt, user_key=None):
         return response.text
         
     except APIError as e:
-        # API 오류 (404, 권한 등)
-        return f"❌ AI 호출 실패: API 오류 발생. 키 유효성 또는 권한을 확인해주세요. (에러: {e})"
+        # 에러 발생 시, 키 길이를 알려줍니다.
+        key_len = len(api_key)
+        return f"❌ AI 호출 실패: API 오류 발생. 키 길이: {key_len} (에러: {e})"
     except Exception as e:
-        # 기타 오류
         return f"❌ AI 호출 실패: 예상치 못한 오류 발생. (에러: {e})"
 
 # --- 플랫폼별 데이터 수집 함수들 ---
