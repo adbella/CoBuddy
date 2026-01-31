@@ -148,7 +148,7 @@ with st.sidebar:
     else:
         show_admin = False
     
-    if st.button("🚪 로그아웃", key=key="sidebar_logout_btn", use_container_width=True):
+    if st.button("🚪 로그아웃", key="logout_btn", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
