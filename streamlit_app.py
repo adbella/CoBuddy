@@ -90,41 +90,63 @@ if not st.session_state.user_id:
     st.stop()
 
 # --- [3] 로그인 후 사이드바 부분 ---
-with st.sidebar:
-    st.markdown(f"### 👋 {st.session_state.user_nick}님 반가워요!")
-    
+# AI 설정
     st.markdown("### 🔑 API 설정")
     st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
     
     # Secrets의 키를 기본값으로 사용
     default_key = st.secrets.get("GOOGLE_API_KEY", "")
     
-    # 🌟🌟🌟 유효한 키가 이미 있으면 입력창을 숨김 처리 🌟🌟🌟
-    effective_key = default_key # 일단 Secrets 키를 유효하다고 가정
-    
-    # 만약 Secrets에 키가 없거나 사용자가 새 키를 입력할 때만 입력창을 보여줌
-    if not effective_key or st.session_state.get("show_key_input", False):
-        user_key = st.text_input(
+    # 세션 상태 초기화 (입력창 노출 여부)
+    if "show_key_input" not in st.session_state:
+        st.session_state.show_key_input = False
+        
+    # 현재 유효한 키 (Secrets 키 또는 세션에 저장된 user_key)
+    effective_key = st.session_state.get("user_key_value", default_key)
+
+    # 🌟🌟🌟 1. 키 입력창 노출 조건 및 마스킹 🌟🌟🌟
+    if st.session_state.show_key_input or not effective_key:
+        
+        # 기존 키가 있다면 마스킹하여 표시 (보안 유지)
+        masked_key = "********" if effective_key else ""
+        
+        user_input_key = st.text_input(
             "Gemini API Key 입력", 
             type="password", 
-            value=default_key,
+            value=masked_key, # 기존 키를 마스킹하여 표시
             key="user_gemini_key_input",
             help="여기에 키를 입력하거나 수정하세요."
         )
-        effective_key = user_key # 사용자가 입력한 키가 새로운 유효 키가 됨
-        
-        # 키를 입력하면 세션 상태를 False로 바꿔 입력창을 숨김
-        if user_key and user_key != default_key:
-            st.session_state.show_key_input = False
+
+        # 사용자가 마스킹된 값 대신 새로운 값을 입력했을 때만 처리
+        if user_input_key and user_input_key != "********":
+            st.session_state.user_key_value = user_input_key # 새 키를 세션에 저장
+            st.session_state.show_key_input = False # 입력창 숨김
             st.rerun()
             
-    # 키가 입력된 후에는 숨김 처리 대신 버튼을 통해 수정을 유도
-    elif effective_key:
+        if effective_key: # 키를 숨길 때 사용할 '취소' 버튼
+            if st.button("입력 취소", key="cancel_key_input"):
+                st.session_state.show_key_input = False
+                st.rerun()
+    
+    # 🌟🌟🌟 2. 키가 유효할 때의 표시 및 수정 버튼 🌟🌟🌟
+    else: 
         st.success("✅ API 키 적용 완료. (AI 기능 사용 가능)")
+        st.caption("키는 보안을 위해 숨김 처리되었습니다.")
+        
         if st.button("키 수정/변경", key="modify_key_btn"):
             st.session_state.show_key_input = True
             st.rerun()
 
+    # 🌟🌟🌟 user_key 변수 업데이트 (메인 로직에서 사용할 키) 🌟🌟🌟
+    # 입력창이 보일 때는 사용자가 입력한 값 (세션에 저장 전의 값)을 쓰고,
+    # 입력창이 숨겨져 있을 때는 세션에 저장된 effective_key를 사용
+    if st.session_state.show_key_input:
+        # 사용자가 입력한 값이 마스킹 값이 아니면 그 값을 사용
+        user_key = st.session_state.user_gemini_key_input if st.session_state.user_gemini_key_input != "********" else effective_key
+    else:
+        user_key = effective_key
+        
     st.divider()
 
     # PDF 업로드 영역 (UI 개선)
