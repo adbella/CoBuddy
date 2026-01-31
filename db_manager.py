@@ -16,15 +16,79 @@ def get_db_connection():
                 db=st.secrets["db"]["name"],
                 port=int(st.secrets["db"].get("port", 3306)),
                 charset='utf8mb4',
-                cursorclass=pymysql.cursors.DictCursor
+                cursorclass=pymysql.cursors.DictCursor,
+                connect_timeout=10 # 연결 시간 초과 방지
             )
     except Exception as e:
-        pass
-   
-    # 2. 없으면 로컬 SQLite 사용
+        print(f"DB Connection Error: {e}")
+    
+    # MySQL 연결 실패 시 SQLite 사용
     conn = sqlite3.connect('cobuddy.db', check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
+
+def init_db():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # MySQL과 SQLite 모두에서 작동하는 범용 문법 (TEXT 대신 VARCHAR 사용)
+    queries = [
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            user_id VARCHAR(50) PRIMARY KEY,
+            nickname VARCHAR(100) UNIQUE,
+            password_hash VARCHAR(255),
+            last_login VARCHAR(50)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS my_skills (
+            user_id VARCHAR(50),
+            skill_name VARCHAR(100),
+            level INTEGER,
+            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, skill_name)
+        )
+        """
+    ]
+    
+    try:
+        for q in queries:
+            cursor.execute(q)
+        if hasattr(conn, 'commit'):
+            conn.commit()
+    except Exception as e:
+        print(f"Init DB Error: {e}")
+    finally:
+        conn.close()
+
+def authenticate_user(nickname, password):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if "db" in st.secrets:
+        query = "SELECT * FROM users WHERE nickname = %s"
+    else:
+        query = "SELECT * FROM users WHERE nickname = ?"
+    cursor.execute(query, (nickname,))
+    user = cursor.fetchone()
+    conn.close()
+    if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+        return user
+    return None
+
+def save_skill(user_id, skill, level):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if "db" in st.secrets:
+        # MySQL 전용 UPSERT 문법
+        query = "INSERT INTO my_skills (user_id, skill_name, level) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE level = %s"
+        cursor.execute(query, (user_id, skill, level, level))
+    else:
+        # SQLite 전용 UPSERT 문법
+        query = "INSERT OR REPLACE INTO my_skills (user_id, skill_name, level) VALUES (?, ?, ?)"
+        cursor.execute(query, (user_id, skill, level))
+    conn.commit()
+    conn.close()
 
 def get_all_users_for_admin():
     conn = get_db_connection()
@@ -39,18 +103,6 @@ def get_all_users_for_admin():
             return pd.read_sql(query, conn)
     finally:
         conn.close()
-
-def init_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    queries = [
-        "CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, nickname TEXT UNIQUE, password_hash TEXT, last_login TEXT)",
-        "CREATE TABLE IF NOT EXISTS my_skills (user_id TEXT, skill_name TEXT, level INTEGER, added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, skill_name))"
-    ]
-    for q in queries:
-        cursor.execute(q)
-    if hasattr(conn, 'commit'): conn.commit()
-    conn.close()
 
 def create_user(nickname, password):
     """일반 회원가입"""
@@ -113,6 +165,15 @@ def get_my_skills(user_id):
     except Exception as e: return f"조회 에러: {e}"
     finally: conn.close()
 
+def get_admin_stats():
+    conn = get_db_connection()
+    try:
+        user_list = pd.read_sql("SELECT user_id, nickname, last_login FROM users", conn)
+        skill_list = pd.read_sql("SELECT * FROM my_skills", conn)
+        return len(user_list), len(skill_list), user_list, skill_list
+    finally:
+        conn.close() 
+
 def delete_skill(user_id, skill_name):
     """특정 스킬 삭제"""
     conn = get_db_connection()
@@ -123,27 +184,4 @@ def delete_skill(user_id, skill_name):
         conn.commit()
         return True
     except: return False
-    finally: conn.close()    
-
-def get_admin_stats():
-    """관리자용: 전체 통계 데이터 가져오기"""
-    conn = get_db_connection()
-    try:
-        # 사용자 수, 등록된 총 스킬 수 조회
-        if isinstance(conn, sqlite3.Connection):
-            u_count = pd.read_sql("SELECT COUNT(*) as cnt FROM users", conn).iloc[0]['cnt']
-            s_count = pd.read_sql("SELECT COUNT(*) as cnt FROM my_skills", conn).iloc[0]['cnt']
-            user_list = pd.read_sql("SELECT user_id, nickname, last_login FROM users", conn)
-            skill_list = pd.read_sql("SELECT * FROM my_skills", conn)
-        else:
-            with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) as cnt FROM users")
-                u_count = cur.fetchone()['cnt']
-                cur.execute("SELECT COUNT(*) as cnt FROM my_skills")
-                s_count = cur.fetchone()['cnt']
-            user_list = pd.read_sql("SELECT user_id, nickname, last_login FROM users", conn)
-            skill_list = pd.read_sql("SELECT * FROM my_skills", conn)
-            
-        return u_count, s_count, user_list, skill_list
-    finally:
-        conn.close()    
+    finally: conn.close()
