@@ -207,7 +207,7 @@ if st.session_state.get("show_admin"):
     # 관리자 대시보드 출력 시작
     st.title("📊 관리자 대시보드")
     u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
-
+    
     col1, col2 = st.columns(2)
     with col1: st.metric("총 가입자 수", f"{u_cnt}명")
     with col2: st.metric("총 등록 스킬", f"{s_cnt}개")
