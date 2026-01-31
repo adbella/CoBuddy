@@ -192,8 +192,8 @@ if st.session_state.user_id: # 로그인 성공 후
             
             # 리스트를 보여주는 확장 메뉴 (선택사항)
             with st.expander("학습 문서 목록 보기"):
-                for file in file_names:
-                st.write(f"- {file.name}")
+            for file in file_names:
+            st.write(f"- {file.name}")
 
         # 관리자 메뉴
         is_admin = st.session_state.user_nick in ["안종호"] 
