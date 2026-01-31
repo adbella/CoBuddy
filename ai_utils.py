@@ -7,16 +7,21 @@ def ask_ai(prompt, user_key=None):
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
     if not api_key: return "⚠️ API 키가 설정되지 않았습니다."
     
-    # 404 에러 방지를 위한 안전한 모델 경로
     try:
+        # 모델 명칭을 'gemini-1.5-flash'로 단순화하여 호출
         llm = ChatGoogleGenerativeAI(
-            model="models/gemini-1.5-flash", 
+            model="gemini-1.5-flash", 
             google_api_key=api_key,
             temperature=0.7
         )
         return llm.invoke(prompt).content
     except Exception as e:
-        return f"❌ AI 호출 실패: {e}"
+        # 만약 에러가 또 나면 최신 버전 별칭인 'gemini-1.5-flash-latest'로 재시도
+        try:
+            llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", google_api_key=api_key)
+            return llm.invoke(prompt).content
+        except:
+            return f"❌ AI 호출 실패: {str(e)}"
 
 # --- 플랫폼별 데이터 수집 함수들 ---
 
@@ -54,10 +59,6 @@ def get_devto_data(query):
         return "=== Dev.to 기술 아티클 ===\n" + "\n".join([f"- {a['title']}: {a['url']}" for a in res])
     except: return ""
 
-# --- 통합 검색 및 요약 함수 ---
-
-# ... (앞부분 생략)
-
 def search_all_platforms(message, user_key=None):
     query = message.replace("추천", "").replace("찾아줘", "").replace("검색", "").strip()
     if not query: query = "new programming projects"
@@ -71,17 +72,17 @@ def search_all_platforms(message, user_key=None):
         ]
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
 
-    raw_data = "\n\n".join([r for r in results if r])
+    all_raw_data = "\n\n".join([r for r in results if r])
     
     prompt = f"""
-    당신은 친절한 개발 멘토 '코버디'입니다. 다음 수집된 데이터를 바탕으로 사용자의 질문 '{message}'에 대해 답변하세요.
-    반드시 다음 마크다운 표 형식을 사용하여 가독성 있게 작성하세요.
+    당신은 친절한 개발 멘토 '코버디'입니다. 다음 수집된 데이터를 바탕으로 '{message}'에 대해 답변하세요.
+    반드시 한국어로 작성하고, 아래 표 형식을 사용하세요.
     
-    | 💡 추천 항목 | ✨ 상세 설명 및 멘토의 조언 | 📊 난이도 | 🔗 바로가기 |
+    | 💡 추천 자료 | ✨ 코버디의 조언 | 📊 난이도 | 🔗 링크 |
     | :--- | :--- | :--- | :--- |
     
-    데이터:
-    {raw_data}
+    자료:
+    {all_raw_data}
     
     한국어로 답변하고, 초보자가 이해하기 쉽게 설명해주세요.
     마지막엔 '오늘도 당신의 성장을 코버디가 응원해요! 🔥'라고 말해주세요.

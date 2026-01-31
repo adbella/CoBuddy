@@ -89,37 +89,40 @@ if not st.session_state.user_id:
                 st.link_button("🔵 Google 계정으로 로그인", url, use_container_width=True)
     st.stop()
 
-# --- 메인 화면 사이드바 ---
+# --- [3] 로그인 후 사이드바 부분 ---
 with st.sidebar:
-    st.title("🐣 코버디")
-    st.markdown(f"**{st.session_state.user_nick}**님, 환영해요!")
+    st.markdown(f"### 👋 {st.session_state.user_nick}님 반가워요!")
     
+    # AI 설정
     with st.expander("🔑 AI 설정", expanded=False):
-        user_key = st.text_input("Gemini API Key", type="password")
+        user_key = st.text_input("Gemini API Key 입력", type="password", key="user_gemini_key")
         if user_key: st.success("키 적용 완료")
+
+    st.divider()
     
-    st.divider()
-    st.markdown("### 🛠 빠른 도구")
-    if st.button("📋 내 스킬 목록 보기", use_container_width=True):
-        st.session_state.messages.append({"role": "user", "content": "목록"})
-        st.session_state.messages.append({"role": "assistant", "content": db.get_my_skills(st.session_state.user_id)})
-        
-    if st.button("🗑️ 대화 기록 지우기", use_container_width=True):
-        st.session_state.messages = []
-        st.rerun()
-
-    st.divider()
+    # PDF 업로드 영역 (UI 개선)
     st.markdown("### 📚 스마트 PDF 학습")
-    pdf = st.file_uploader("자료를 올려주세요", type="pdf")
-    if pdf:
-        if "cur_pdf" not in st.session_state or st.session_state.cur_pdf != pdf.name:
-            with st.spinner("코버디가 읽는 중..."):
-                st.session_state.retriever = rag.process_pdf(pdf)
-                st.session_state.cur_pdf = pdf.name
-                st.success("학습 완료! 질문해보세요.")
+    st.info("여기에 공부할 PDF 파일을 올려주세요. 코버디가 분석해 드릴게요!")
+    
+    # 라벨을 숨기고 커스텀 안내문 사용
+    pdf_file = st.file_uploader(
+        "파일 업로드 (PDF 전용)", 
+        type=["pdf"], 
+        key="pdf_uploader",
+        label_visibility="collapsed" # 기존 영문 라벨을 숨김
+    )
+    
+    if pdf_file:
+        if "cur_pdf" not in st.session_state or st.session_state.cur_pdf != pdf_file.name:
+            with st.spinner("코버디가 문서를 읽고 있어요... 📖"):
+                st.session_state.retriever = rag.process_pdf(pdf_file)
+                st.session_state.cur_pdf = pdf_file.name
+                st.success(f"✅ '{pdf_file.name}' 학습 완료!")
+        else:
+            st.caption(f"📍 현재 학습 중: {pdf_file.name}")
 
     st.divider()
-    if st.button("🚪 로그아웃", use_container_width=True):
+    if st.button("🚪 로그아웃", key="logout_btn", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
