@@ -93,19 +93,6 @@ def authenticate_user(nickname, password):
         return None
     finally: conn.close()
 
-def save_skill(user_id, skill, level):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        if not isinstance(conn, sqlite3.Connection):
-            query = "INSERT INTO my_skills (user_id, skill_name, level) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE level = %s"
-            cursor.execute(query, (user_id, skill, level, level))
-        else:
-            query = "INSERT OR REPLACE INTO my_skills (user_id, skill_name, level) VALUES (?, ?, ?)"
-            cursor.execute(query, (user_id, skill, level))
-        conn.commit()
-    finally: conn.close()
-
 def create_user(nickname, password):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -139,18 +126,56 @@ def get_or_create_google_user(email, name):
     finally: conn.close()
 
 def get_my_skills(user_id):
+    """사용자의 스킬 목록을 더 확실하게 가져오는 방식"""
     conn = get_db_connection()
+    cursor = conn.cursor()
     try:
-        q = "SELECT skill_name, level FROM my_skills WHERE user_id = %s" if not isinstance(conn, sqlite3.Connection) else "SELECT skill_name, level FROM my_skills WHERE user_id = ?"
-        df = pd.read_sql(q, conn, params=(user_id,))
-        if df.empty: return "🐣 아직 등록된 스킬이 없어요."
+        is_mysql = not isinstance(conn, sqlite3.Connection)
+        # DB 유형에 맞는 쿼리문 선택
+        query = "SELECT skill_name, level FROM my_skills WHERE user_id = %s" if is_mysql else "SELECT skill_name, level FROM my_skills WHERE user_id = ?"
+        
+        cursor.execute(query, (user_id,))
+        rows = cursor.fetchall()
+        
+        if not rows:
+            db_type = "MySQL" if is_mysql else "SQLite"
+            return f"🐣 아직 등록된 스킬이 없어요. (연결된 DB: {db_type})\n'**파이썬 5**' 처럼 입력해보세요!"
+        
         res = "### 📋 현재 당신의 기술 스택\n\n"
-        for _, r in df.iterrows():
-            lv = r['level']
-            res += f"**{r['skill_name']}** (Lv.{lv})  \n" + "🔥" * lv + "⚪" * (10-lv) + "\n\n"
+        for r in rows:
+            # MySQL(dict)과 SQLite(Row) 양쪽 모두 대응
+            s_name = r['skill_name']
+            s_lv = r['level']
+            gauge = "🔥" * s_lv + "⚪" * (10 - s_lv)
+            res += f"**{s_name}** (Lv.{s_lv})  \n{gauge}\n\n"
         return res
-    finally: conn.close()
+    except Exception as e:
+        return f"❌ 조회 중 오류 발생: {e}"
+    finally:
+        conn.close()
 
+def save_skill(user_id, skill, level):
+    """데이터 저장 후 커밋을 더 확실하게 처리"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        if not isinstance(conn, sqlite3.Connection):
+            # MySQL용 UPSERT
+            query = "INSERT INTO my_skills (user_id, skill_name, level) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE level = %s"
+            cursor.execute(query, (user_id, skill, level, level))
+        else:
+            # SQLite용 UPSERT
+            query = "INSERT OR REPLACE INTO my_skills (user_id, skill_name, level) VALUES (?, ?, ?)"
+            cursor.execute(query, (user_id, skill, level))
+        
+        # 반드시 commit을 호출해야 DB에 실제 반영됩니다.
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"저장 에러: {e}")
+        return False
+    finally:
+        conn.close()
 def get_admin_stats():
     conn = get_db_connection()
     try:
