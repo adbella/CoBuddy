@@ -177,21 +177,21 @@ if st.session_state.user_id: # 로그인 성공 후
 
     st.divider()
 
-        # 관리자 메뉴
-        is_admin = st.session_state.user_nick in ["안종호"] 
-        if is_admin:
-            st.markdown("### 👑 관리자 메뉴")
-            if "show_admin" not in st.session_state:
-                st.session_state.show_admin = False
-                
-            st.session_state.show_admin = st.checkbox("관리자 대시보드 보기", key="admin_chk")
+    # 관리자 메뉴
+    is_admin = st.session_state.user_nick in ["안종호"] 
+    if is_admin:
+        st.markdown("### 👑 관리자 메뉴")
+        if "show_admin" not in st.session_state:
+            st.session_state.show_admin = False
+            
+        st.session_state.show_admin = st.checkbox("관리자 대시보드 보기", key="admin_chk")
 
-        st.divider()
-        
-        # 로그아웃 버튼
-        if st.button("🚪 로그아웃", key="sidebar_logout_btn", use_container_width=True): 
-            st.session_state.clear()
-            st.rerun()
+    st.divider()
+    
+    # 로그아웃 버튼
+    if st.button("🚪 로그아웃", key="sidebar_logout_btn", use_container_width=True): 
+        st.session_state.clear()
+        st.rerun()
             
 # --- [메인 화면 영역 수정] ---
 if st.session_state.get("show_admin"):
