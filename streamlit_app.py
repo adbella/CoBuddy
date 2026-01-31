@@ -116,20 +116,30 @@ if not st.session_state.user_id:
 
 # 7. 로그인 후 로직
 if st.session_state.user_id:
+    # 🌟 세션 상태에 api_exhausted 초기화 (코드 상단 초기화 부분에 추가 권장)
+    if "api_exhausted" not in st.session_state:
+        st.session_state.api_exhausted = False
+
     with st.sidebar:
+        # 🌟 할당량 초과 시 최상단에 붉은색 경고창 표시
+        if st.session_state.api_exhausted:
+            st.error(t('api_limit_reached'))
+            # 사용자가 개인 키를 입력하면 상태를 해제할 수 있도록 안내
+        
         st.markdown(f"### {t('welcome')} {st.session_state.user_nick}!")
         
         # A. API 설정
-        with st.expander(t('api_setup'), expanded=False):
-            st.markdown(f"**:red[{t('api_no_key')}]** [Link](https://aistudio.google.com/app/apikey) {t('api_make_here')}")
+        with st.expander(t('api_setup'), expanded=st.session_state.api_exhausted): # 할당량 초과 시 열어둠
+             st.markdown(f"**:red[{t('api_no_key')}]** [Link](https://aistudio.google.com/app/apikey) {t('api_make_here')}")
             effective_key = st.session_state.user_key_value
             if st.session_state.show_key_input or not effective_key:
                 masked_key = "********" if effective_key else ""
                 user_input_key = st.text_input(t('api_placeholder'), type="password", value=masked_key, key="user_gemini_key_input")
                 if user_input_key and user_input_key != masked_key:
-                    st.session_state.user_key_value = user_input_key 
-                    st.session_state.show_key_input = False
-                    st.rerun()
+                st.session_state.user_key_value = user_input_key 
+                st.session_state.api_exhausted = False # 🌟 키 입력 시 에러 상태 초기화
+                st.session_state.show_key_input = False
+                st.rerun()
                 if effective_key and st.button("Cancel", key="cancel_key_input"):
                     st.session_state.show_key_input = False
                     st.rerun()
@@ -189,64 +199,64 @@ if not st.session_state.get("show_admin"):
 
     # 새로운 사용자 입력 처리
     if prompt := st.chat_input(t('chat_placeholder')):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user", avatar="🧑‍💻"):
-            st.markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user", avatar="🧑‍💻"):
+        st.markdown(prompt)
 
-        with st.chat_message("assistant", avatar="🐣"):
-            # 🌟 [상태 안내] 응답 시작 전 공통 안내
-            status_placeholder = st.empty()
-            status_placeholder.write(f"_{t('status_thinking')}_")
-            
-            lang_instruction = f"\n\n(Please answer in {t('prompt_lang')}. Use clear markdown tables if needed.)"
-            final_prompt = prompt + lang_instruction
-            
-            res_text = None
-            stream_gen = None
+    with st.chat_message("assistant", avatar="🐣"):
+        # 🌟 1단계: 가장 먼저 공통 로딩 문구를 띄움
+        status_placeholder = st.empty()
+        status_placeholder.write(f"_{t('status_thinking')}_") # "요청을 확인하고 있어요..."
+        
+        lang_instruction = f"\n\n(Please answer in {t('prompt_lang')}. Use clear markdown tables if needed.)"
+        final_prompt = prompt + lang_instruction
+        
+        res_text = None
+        stream_gen = None
 
-            # 1. 스킬 목록 조회 (DB)
+        # --- 로직 분기 ---
+        
+        # [A] 스킬 목록 조회/저장 (DB)
+        if prompt in ["목록", "조회", "스킬", "내 스킬", "list", "skill", "skills"] or (len(prompt.split()) == 2 and prompt.split()[1].isdigit()):
+            status_placeholder.write(f"_{t('status_db_checking')}_")
             if prompt in ["목록", "조회", "스킬", "내 스킬", "list", "skill", "skills"]:
-                status_placeholder.write(f"_{t('status_db_checking')}_")
                 res_text = db.get_my_skills(st.session_state.user_id)
-                status_placeholder.empty()
-                st.markdown(res_text)
-
-            # 2. 스킬 저장 (DB)
-            elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
-                status_placeholder.write(f"_{t('status_skill_saving')}_")
+            else:
                 s, l = prompt.split()
                 db.save_skill(st.session_state.user_id, s, int(l))
                 res_text = t('save_skill').format(s=s, l=l)
-                status_placeholder.empty()
-                st.markdown(res_text)
+            
+            status_placeholder.empty() # 작업 끝났으므로 문구 삭제
+            st.markdown(res_text)
 
-            # 3. AI 답변 (추천 검색 / PDF / 일반 대화)
-            else:
-                # (A) 추천 및 플랫폼 검색
-                if any(w in prompt.lower() for w in ["추천", "검색", "찾아줘", "자료", "recommend", "search", "find"]):
-                    status_placeholder.empty() # st.status와 겹치지 않게 제거
-                    # st.status를 한글화된 완료 문구와 함께 사용
-                    with st.status(t('ai_searching'), expanded=True) as status_box:
-                        stream_gen = ai.search_all_platforms(final_prompt, user_key)
-                        status_box.update(label=t('pdf_done'), state="complete", expanded=False)
+        # [B] 추천 및 검색 (시간이 오래 걸리므로 st.status 사용)
+        elif any(w in prompt.lower() for w in ["추천", "검색", "찾아줘", "자료", "recommend", "search", "find"]):
+            status_placeholder.empty() # 공통 문구 삭제
+            with st.status(t('ai_searching'), expanded=True) as status_box:
+                stream_gen = ai.search_all_platforms(final_prompt, user_key)
+                status_box.update(label=t('status_done'), state="complete", expanded=False) # 🌟 "완료되었습니다!" 로 수정
+
+        # [C] 일반 대화 및 PDF 질문 (st.spinner 사용)
+        else:
+            # 🌟 2단계: 여기서 spinner를 사용하여 AI가 응답을 시작할 때까지 문구 유지
+            loading_msg = t('ai_reading') if "retriever" in st.session_state and st.session_state.retriever else t('status_ai_calling')
+            
+            with st.spinner(loading_msg): # "AI 멘토와 대화 내용을 정리 중..."
+                status_placeholder.empty() # 공통 문구 삭제
                 
-                # (B) PDF 문서 기반 질문
-                elif "retriever" in st.session_state and st.session_state.retriever:
-                    status_placeholder.write(f"_{t('ai_reading')}_") # "문서를 꼼꼼히 읽고 있어요..."
+                if "retriever" in st.session_state and st.session_state.retriever:
                     docs = st.session_state.retriever.invoke(prompt)
                     ctx = "\n".join([d.page_content for d in docs])
                     stream_gen = ai.ask_ai_stream(f"Context:\n{ctx}\n\nQuestion: {final_prompt}", user_key)
-                
-                # (C) 일반 AI 대화
                 else:
-                    status_placeholder.write(f"_{t('status_ai_calling')}_") # "AI 멘토와 대화 내용을 정리하고 있습니다..."
                     stream_gen = ai.ask_ai_stream(final_prompt, user_key)
+            
+            # spinner 블록이 끝나도 stream_gen이 동작하기 전까지는 placeholder가 다시 필요할 수 있음
 
-                # 🌟 실시간 타이핑 출력 시작 🌟
-                if stream_gen:
-                    status_placeholder.empty() # 출력이 시작되기 직전에 로딩 문구 제거
-                    res_text = st.write_stream(stream_gen)
+        # 🌟 3단계: 실시간 타이핑 출력
+        if stream_gen:
+            res_text = st.write_stream(stream_gen)
 
-            # 세션에 최종 응답 저장
-            if res_text:
-                st.session_state.messages.append({"role": "assistant", "content": res_text})
+        # 최종 응답 저장
+        if res_text:
+            st.session_state.messages.append({"role": "assistant", "content": res_text})

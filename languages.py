@@ -48,7 +48,8 @@ TRANS = {
         "status_thinking": "잠시만요, 요청하신 내용을 확인하고 있어요... 🤔",
         "status_db_checking": "데이터베이스에서 정보를 찾는 중입니다... 🗄️",
         "status_skill_saving": "새로운 성취를 기록하고 있습니다! ✨",
-        "status_ai_calling": "AI 멘토와 대화 내용을 정리하고 있습니다... 🐣"
+        "status_ai_calling": "AI 멘토와 대화 내용을 정리하고 있습니다... 🐣",
+        "api_limit_reached": "⚠️ 시스템 API 할당량이 초과되었습니다! 계속 대화하시려면 [API 설정]에서 본인의 키를 입력해주세요."
     },
     "EN": {
         "title": "🐣 CoBuddy",
@@ -93,10 +94,15 @@ TRANS = {
         "secrets_needed": "Secrets configuration needed.",
         "invalid_input": "⚠️ Invalid input.",
         "save_skill": "✅ **{s}** (Level {l}) Saved! Keep growing.",
+        "status_done": "완료되었습니다! ✨", # 추천 완료 시 사용
+        "pdf_done": "문서 분석 완료!", # PDF 업로드 완료 시 사용
         # --- Status Messages ---
         "status_thinking": "Wait a second, checking your request... 🤔",
         "status_db_checking": "Checking information from the database... 🗄️",
         "status_skill_saving": "Recording your new achievement! ✨",
-        "status_ai_calling": "Organizing the conversation with the AI mentor... 🐣"
+        "status_ai_calling": "Organizing the conversation with the AI mentor... 🐣",
+        "status_done": "Done! ✨",
+        "pdf_done": "Analysis Complete!",
+        "api_limit_reached": "⚠️ System API limit reached! Please enter your own key in [API Setup] to continue."
     }
 }

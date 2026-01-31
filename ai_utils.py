@@ -49,37 +49,37 @@ def ask_ai(prompt, user_key=None):
         return f"❌ 시스템 오류: {e}"
 
 def ask_ai_stream(prompt, user_key=None):
-    """🌟 실시간 타이핑 효과를 위한 스트리밍 함수 (SSE 방식) 🌟"""
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
     if not api_key:
         yield "⚠️ API 키가 설정되지 않았습니다."
         return
 
     model_name = get_best_available_model(api_key)
-    
-    # 스트리밍 전용 URL (streamGenerateContent)
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent?key={api_key}&alt=sse"
     headers = {'Content-Type': 'application/json'}
     data = {"contents": [{"parts": [{"text": prompt}]}]}
 
     try:
-        # stream=True로 연결 유지
         response = requests.post(url, headers=headers, json=data, stream=True)
         
+        # 🌟 429 에러(할당량 초과) 감지 로직 추가
+        if response.status_code == 429:
+            st.session_state.api_exhausted = True # 할당량 소진 상태 기록
+            yield f"❌ {st.session_state.get('language_error_msg', '할당량 초과')}" # 에러 메시지 반환
+            return
+
         for line in response.iter_lines():
+            # ... (기존 스트리밍 파싱 로직 동일) ...
             if line:
                 decoded_line = line.decode('utf-8')
-                # SSE 데이터 형식인 "data: " 로 시작하는 부분만 파싱
                 if decoded_line.startswith('data: '):
                     try:
-                        json_str = decoded_line[6:] # "data: " 제거
+                        json_str = decoded_line[6:]
                         if json_str.strip() == '[DONE]': break
-                        
                         chunk = json.loads(json_str)
                         text_chunk = chunk['candidates'][0]['content']['parts'][0]['text']
                         yield text_chunk
-                    except:
-                        continue
+                    except: continue
     except Exception as e:
         yield f"❌ 스트리밍 오류: {e}"
 
