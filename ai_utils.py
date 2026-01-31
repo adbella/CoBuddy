@@ -1,7 +1,8 @@
+import ai_utils as ai
 import streamlit as st
 import requests
 import concurrent.futures
-import ai_utils as ai
+
 from google.genai import Client
 from google.genai.errors import APIError
 from google import genai
