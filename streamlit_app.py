@@ -256,22 +256,22 @@ if st.session_state.user_id:
 
     # 사용자 입력 처리
     if prompt := st.chat_input("무엇이든 물어보세요!"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-    with st.chat_message("assistant"):
-        # 1. 스킬 목록 (DB 기능 - 즉시 출력)
-        if prompt in ["목록", "조회", "스킬", "내 스킬"]:
-            res = db.get_my_skills(st.session_state.user_id)
-            st.markdown(res)
-            st.session_state.messages.append({"role": "assistant", "content": res})
+        with st.chat_message("assistant"):
+            # 1. 스킬 목록 (DB 기능 - 즉시 출력)
+            if prompt in ["목록", "조회", "스킬", "내 스킬"]:
+                res = db.get_my_skills(st.session_state.user_id)
+                st.markdown(res)
+                st.session_state.messages.append({"role": "assistant", "content": res})
             
-        # 2. 스킬 저장 (DB 기능 - 즉시 출력)
-        elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
-            s, l = prompt.split()
-            db.save_skill(st.session_state.user_id, s, int(l))
-            res = f"✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
+            # 2. 스킬 저장 (DB 기능 - 즉시 출력)
+            elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
+                s, l = prompt.split()
+                db.save_skill(st.session_state.user_id, s, int(l))
+                res = f"✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
             st.markdown(res)
             st.session_state.messages.append({"role": "assistant", "content": res})
         
