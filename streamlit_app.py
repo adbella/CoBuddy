@@ -88,9 +88,8 @@ if not st.session_state.user_id:
                 url = f"https://accounts.google.com/o/oauth2/auth?{urllib.parse.urlencode(params)}"
                 st.link_button("🔵 Google 계정으로 로그인", url, use_container_width=True)
     st.stop()
-
-# --- [3] 로그인 후 사이드바와 메인 화면 로직] ---
-
+    
+# --- [3] 로그인 후 사이드바 전체 코드] ---
 if st.session_state.user_id: # 로그인 성공 후
     
     # 🌟🌟🌟 사이드바 전체를 하나의 with st.sidebar로 묶습니다. 🌟🌟🌟
@@ -152,50 +151,45 @@ if st.session_state.user_id: # 로그인 성공 후
 
         # PDF 업로드 영역 (UI 개선)
         st.markdown("### 📚 스마트 PDF 학습")
-    st.info("여기에 공부할 PDF 파일을 **여러 개** 올려주세요. 모든 파일을 통합 분석해 드릴게요!") # 문구 수정
-    
-    # 🌟🌟🌟 accept_multiple_files=True 추가 🌟🌟🌟
-    uploaded_files = st.file_uploader(
-        "파일 업로드 (PDF 전용)", 
-        type=["pdf"], 
-        key="pdf_uploader",
-        accept_multiple_files=True, # 다중 파일 업로드 허용
-        label_visibility="collapsed"
-    )
-    
-    if uploaded_files: # 리스트로 넘어옵니다.
-        # 파일 목록이 바뀌었을 때만 재분석
-        current_names = sorted([f.name for f in uploaded_files])
-        if st.session_state.get("current_pdf_list") != current_names:
-            with st.spinner(f"코버디가 {len(uploaded_files)}개의 문서를 읽고 있어요... 📖"):
-                # 🌟🌟🌟 다중 파일 처리 함수 호출 🌟🌟🌟
-                st.session_state.retriever = rag.process_multiple_pdfs(uploaded_files)
-                st.session_state.current_pdf_list = current_names
-                st.success(f"✅ {len(uploaded_files)}개 문서 통합 학습 완료!")
-        else:
-            st.caption(f"📍 현재 학습 중인 문서: {len(uploaded_files)}개")
+        st.info("여기에 공부할 PDF 파일을 올려주세요. 코버디가 분석해 드릴게요!")
+        
+        pdf_file = st.file_uploader(
+            "파일 업로드 (PDF 전용)", 
+            type=["pdf"], 
+            key="pdf_uploader",
+            label_visibility="collapsed"
+        )
+        
+        if pdf_file:
+            if "cur_pdf" not in st.session_state or st.session_state.cur_pdf != pdf_file.name:
+                with st.spinner("코버디가 문서를 읽고 있어요... 📖"):
+                    st.session_state.retriever = rag.process_multiple_pdfs([pdf_file]) # 단일 파일도 리스트로 넘김
+                    st.session_state.cur_pdf = pdf_file.name
+                    st.success(f"✅ 학습 완료: {pdf_file.name}")
+            else:
+                st.caption(f"📍 현재 학습 중: {pdf_file.name}")
 
-    st.divider()
+        st.divider()
 
-    # 관리자 메뉴
-    is_admin = st.session_state.user_nick in ["안종호"] 
-    if is_admin:
-        st.markdown("### 👑 관리자 메뉴")
-        if "show_admin" not in st.session_state:
-            st.session_state.show_admin = False
-            
-        st.session_state.show_admin = st.checkbox("관리자 대시보드 보기", key="admin_chk")
+        # 관리자 메뉴
+        is_admin = st.session_state.user_nick in ["안종호"] 
+        if is_admin:
+            st.markdown("### 👑 관리자 메뉴")
+            if "show_admin" not in st.session_state:
+                st.session_state.show_admin = False
+                
+            st.session_state.show_admin = st.checkbox("관리자 대시보드 보기", key="admin_chk")
 
-    st.divider()
-    
-    # 로그아웃 버튼
-    if st.button("🚪 로그아웃", key="sidebar_logout_btn", use_container_width=True): 
-        st.session_state.clear()
-        st.rerun()
-            
+        st.divider()
+        
+        # 로그아웃 버튼
+        if st.button("🚪 로그아웃", key="sidebar_logout_btn", use_container_width=True): 
+            st.session_state.clear()
+            st.rerun()
+
 # --- [메인 화면 영역 수정] ---
 if st.session_state.get("show_admin"):
-    # 관리자 대시보드 출력 시작
+    # ... (관리자 대시보드 출력 코드) ...
     st.title("📊 관리자 대시보드")
     u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
     
@@ -208,11 +202,12 @@ if st.session_state.get("show_admin"):
     
     st.write("### 🛠️ 전체 사용자 스킬 현황")
     st.dataframe(s_list, use_container_width=True)
-
+    
     if st.button("채팅으로 돌아가기", key="close_admin_chat_btn"):
         st.session_state.show_admin = False
         st.rerun()
-        st.stop() # 관리자 화면이 켜지면 여기서 앱 실행을 멈춤
+    
+    st.stop() # 관리자 화면이 켜지면 여기서 앱 실행을 멈춤
 
 # --- 메인 채팅창 ---
 if not st.session_state.messages:
