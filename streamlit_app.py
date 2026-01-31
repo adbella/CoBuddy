@@ -1,6 +1,6 @@
+import ai_utils as ai
 import streamlit as st
 import db_manager as db
-import ai_utils as ai
 import rag_utils as rag
 import urllib.parse
 import requests

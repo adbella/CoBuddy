@@ -1,11 +1,8 @@
-import ai_utils as ai
 import streamlit as st
 import requests
 import concurrent.futures
-
 from google.genai import Client
 from google.genai.errors import APIError
-from google import genai
 def check_api_key_validity(api_key):
     try:
         client = genai.Client(api_key=api_key)
@@ -39,14 +36,15 @@ def ask_ai_stream(prompt, user_key=None):
 
     try:
         client = Client(api_key=api_key)
-    response_stream = client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt,
-            stream=True,
-            config={'temperature': 0.7}
-        )
-    for chunk in response_stream:
-        yield chunk.text
+        # 🌟🌟🌟 들여쓰기 수정됨 (client 아래 4칸, response_stream 아래 4칸) 🌟🌟🌟
+        response_stream = client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=prompt,
+                stream=True,
+                config={'temperature': 0.7}
+            )
+        for chunk in response_stream:
+            yield chunk.text
             
     except Exception as e:
         yield f"❌ AI 호출 실패: {e}"
