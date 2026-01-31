@@ -146,8 +146,6 @@ if st.session_state.user_id: # 로그인 성공 후
 
         # user_key 변수 업데이트 (메인 로직에서 사용할 키)
         user_key = effective_key
-        
-        st.divider()
 
     # PDF 업로드 영역 (UI 개선)
     st.markdown("### 📚 스마트 PDF 학습")
@@ -195,9 +193,7 @@ if st.session_state.user_id: # 로그인 성공 후
             # 리스트를 보여주는 확장 메뉴 (선택사항)
             with st.expander("학습 문서 목록 보기"):
                 for file in file_names:
-                    st.write(f"- {file.name}")
-                    
-    # ... (나머지 코드 생략)
+                st.write(f"- {file.name}")
 
         # 관리자 메뉴
         is_admin = st.session_state.user_nick in ["안종호"] 
@@ -206,22 +202,19 @@ if st.session_state.user_id: # 로그인 성공 후
             if "show_admin" not in st.session_state:
                 st.session_state.show_admin = False
                 
-            st.session_state.show_admin = st.checkbox("관리자 대시보드 보기", key="admin_chk")
-
-        st.divider()
+        st.session_state.show_admin = st.checkbox("관리자 대시보드 보기", key="admin_chk")
         
         # 로그아웃 버튼
         if st.button("🚪 로그아웃", key="sidebar_logout_btn", use_container_width=True): 
             st.session_state.clear()
             st.rerun()
 
-# --- [메인 화면 영역 수정] ---
-if st.session_state.get("show_admin"):
-    # ... (관리자 대시보드 출력 코드) ...
-    st.title("📊 관리자 대시보드")
-    u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
-    
-    col1, col2 = st.columns(2)
+        if st.session_state.get("show_admin"):
+        # ... (관리자 대시보드 출력 코드) ...
+        st.title("📊 관리자 대시보드")
+        u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
+        
+        col1, col2 = st.columns(2)
     col1.metric("총 가입자 수", f"{u_cnt}명")
     col2.metric("총 등록 스킬", f"{s_cnt}개")
     
@@ -236,7 +229,7 @@ if st.session_state.get("show_admin"):
         st.rerun()
     
     st.stop() # 관리자 화면이 켜지면 여기서 앱 실행을 멈춤
-
+st.divider()
 # --- 메인 채팅창 ---
 if not st.session_state.messages:
     # 온보딩 가이드
