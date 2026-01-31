@@ -5,7 +5,7 @@ import rag_utils as rag
 import urllib.parse
 import requests
 
-st.set_page_config(page_title="코버디 🐣", layout="wide"
+st.set_page_config(page_title="코버디 🐣", layout="wide")
 
 # DB 초기화
 db.init_db()
