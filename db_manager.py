@@ -29,8 +29,8 @@ def init_db():
     
     # 1. 만약 기존에 잘못 생성된 테이블이 있다면 삭제 (초기 1회 권장)
     # 아래 DROP 구문은 처음 한 번만 실행하고 나중에 주석 처리해도 됩니다.
-    # cursor.execute("DROP TABLE IF EXISTS my_skills")
-    # cursor.execute("DROP TABLE IF EXISTS users")
+    cursor.execute("DROP TABLE IF EXISTS my_skills")
+    cursor.execute("DROP TABLE IF EXISTS users")
 
     # 2. MySQL과 SQLite 모두 호환되는 엄격한 문법
     # VARCHAR 길이 지정 및 NOT NULL 명시
