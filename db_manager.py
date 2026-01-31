@@ -164,9 +164,24 @@ def authenticate_user(nickname, password):
     finally: conn.close()
 
 def get_admin_stats():
+    """관리자용: 전체 통계 데이터 가져오기"""
     conn = get_db_connection()
     try:
+        # 데이터프레임이 비어있을 때를 대비하여 컬럼명 명시
+        user_cols = ["user_id", "nickname", "last_login"]
+        skill_cols = ["user_id", "skill_name", "level", "added_at"]
+        
+        # 1. 사용자 목록 조회
         u_list = pd.read_sql("SELECT user_id, nickname, last_login FROM users", conn)
+        # 2. 스킬 목록 조회
         s_list = pd.read_sql("SELECT * FROM my_skills", conn)
+
+        # 데이터가 없으면 빈 데이터프레임을 만들어서 컬럼을 유지합니다.
+        if u_list.empty:
+            u_list = pd.DataFrame(columns=user_cols)
+        if s_list.empty:
+            s_list = pd.DataFrame(columns=skill_cols)
+            
         return len(u_list), len(s_list), u_list, s_list
-    finally: conn.close()
+    finally:
+        conn.close()
