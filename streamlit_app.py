@@ -4,7 +4,7 @@ import db_manager as db
 import rag_utils as rag
 import urllib.parse
 import requests
-from google.genai.errors import APIError
+
 
 # 1. 페이지 설정
 st.set_page_config(

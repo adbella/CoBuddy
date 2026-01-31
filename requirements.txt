@@ -2,14 +2,9 @@ streamlit
 pymysql
 bcrypt
 requests
-# Google API를 직접 호출하기 위한 라이브러리
-google-genai
-
-# RAG(PDF)를 위한 라이브러리
+google-generativeai
 langchain
-langchain-core
 langchain-community
-langchain-text-splitters
 faiss-cpu
 pypdf
 sentence-transformers

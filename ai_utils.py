@@ -1,46 +1,42 @@
 import streamlit as st
+import google.generativeai as genai
 import requests
 import concurrent.futures
-from google.genai import Client
-from google.genai.errors import APIError
-
 
 def check_api_key_validity(api_key):
-    """API 키가 유효한지 체크하는 함수 (간접 확인)"""
+    """API 키 유효성 확인"""
+    if not api_key: return False
     try:
-        # 키가 짧거나 이상하면 바로 False 반환
-        if not api_key or len(api_key) < 30:
-            return False
-        # 유효한 클라이언트 생성 시도 (API 호출)
-        client = Client(api_key=api_key)
-        # client.models.list() 호출 대신 간단한 테스트 호출로 변경 (더 안정적)
-        test_response = client.models.generate_content(model='gemini-pro', contents='test', config={'temperature': 0.7})
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content("test")
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 def ask_ai(prompt, user_key=None):
+    """AI에게 질문하기 (표준 라이브러리 사용)"""
+    # 키 우선순위: 유저 입력 키 > Secrets 키
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
-    if not api_key: return "⚠️ API 키가 설정되지 않았습니다."
     
-    # 🌟🌟🌟 모델 명칭 우회 🌟🌟🌟
-    model_name = 'gemini-1.5-pro' # 최신 모델로 우회 시도
+    if not api_key:
+        return "⚠️ API 키가 설정되지 않았습니다."
     
     try:
-        client = Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=model_name, 
-            contents=prompt,
-            config={'temperature': 0.7}
-        )
+        # 라이브러리 설정
+        genai.configure(api_key=api_key)
+        
+        # 모델 설정 (가장 안정적인 gemini-1.5-flash 사용)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # 답변 생성
+        response = model.generate_content(prompt)
         return response.text
-    except APIError as e:
-        # API 오류 (404, 권한 등)
-        key_len = len(api_key)
-        return f"❌ AI 호출 실패: API 오류 발생. 키 길이: {key_len}. (에러: {e})"
+        
     except Exception as e:
-        return f"❌ AI 호출 실패: 예상치 못한 오류 발생. (에러: {e})"
-# --- 플랫폼별 데이터 수집 함수들 ---
+        return f"❌ AI 호출 실패: {str(e)}"
+
+# --- 플랫폼별 데이터 수집 함수들 (기존 코드 유지) ---
 
 def get_github_data(query):
     try:
@@ -52,7 +48,6 @@ def get_github_data(query):
 
 def get_hf_data(query):
     try:
-        # 모델 라이브러리 검색
         url = f"https://huggingface.co/api/models?search={query}&sort=downloads&direction=-1&limit=3"
         res = requests.get(url, timeout=5).json()
         return "=== HuggingFace 인기 모델 ===\n" + "\n".join([f"- {m['modelId']}: https://huggingface.co/{m['modelId']}" for m in res])
@@ -60,7 +55,6 @@ def get_hf_data(query):
 
 def get_reddit_data(query):
     try:
-        # Reddit의 개발자 커뮤니티 게시글 검색
         headers = {'User-Agent': 'CoBuddy/1.0'}
         url = f"https://www.reddit.com/r/learnprogramming/search.json?q={query}&sort=relevance&t=month&limit=3"
         res = requests.get(url, headers=headers, timeout=5).json()
@@ -70,13 +64,11 @@ def get_reddit_data(query):
 
 def get_devto_data(query):
     try:
-        # Dev.to 기술 블로그 검색
         url = f"https://dev.to/api/articles?tag={query}&per_page=3&top=7"
         res = requests.get(url, timeout=5).json()
         return "=== Dev.to 기술 아티클 ===\n" + "\n".join([f"- {a['title']}: {a['url']}" for a in res])
     except: return ""
 
-# --- 통합 검색 및 요약 함수 (스트리밍 지원) ---
 def search_all_platforms(message, user_key=None):
     query = message.replace("추천", "").replace("찾아줘", "").replace("검색", "").strip()
     if not query: query = "new programming projects"
@@ -105,5 +97,5 @@ def search_all_platforms(message, user_key=None):
     한국어로 답변하고, 초보자가 이해하기 쉽게 설명해주세요.
     마지막엔 '오늘도 당신의 성장을 코버디가 응원해요! 🔥'라고 말해주세요.
     """
-
-    return ask_ai(prompt, user_key) # ask_ai(비-스트리밍) 호출
+    
+    return ask_ai(prompt, user_key)
