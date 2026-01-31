@@ -235,55 +235,57 @@ if st.session_state.get("show_admin"):
     st.stop()
 # 8. 채팅 UI
 if not st.session_state.get("show_admin"):
-# 온보딩 가이드
-    st.markdown("""
-        ### 👋 반가워요! 코버디와 이렇게 대화해보세요.
-        1. **스킬 관리**: `파이썬 5`라고 입력하면 실력을 저장해드려요. `목록`이라고 치면 확인 가능해요!
-        2. **실시간 추천**: `자바 프로젝트 추천해줘`라고 하면 GitHub, Reddit 등을 뒤져서 알려드려요.
-        3. **문서 학습**: 왼쪽에서 PDF를 올리면 그 내용으로 시험 공부나 질문을 할 수 있어요.
-    """)    
-st.info("💡 팁: 아래 채팅창에 질문을 입력하거나 '파이썬 5'를 입력해 보세요.")
-# 대화 출력
-for m in st.session_state.messages:
-    with st.chat_message(m["role"]):
-        st.markdown(m["content"])
+    
+    # 온보딩 가이드 (이 부분이 if 블록 안으로 들어갑니다)
+    if not st.session_state.messages:
+        st.markdown("""
+            ### 👋 반가워요! 코버디와 이렇게 대화해보세요.
+            1. **스킬 관리**: `파이썬 5`라고 입력하면 실력을 저장해드려요. `목록`이라고 치면 확인 가능해요!
+            2. **실시간 추천**: `자바 프로젝트 추천해줘`라고 하면 GitHub, Reddit 등을 뒤져서 알려드려요.
+            3. **문서 학습**: 왼쪽에서 PDF를 올리면 그 내용으로 시험 공부나 질문을 할 수 있어요.
+        """)    
+    
+    st.info("💡 팁: 아래 채팅창에 질문을 입력하거나 '파이썬 5'를 입력해 보세요.")
+    
+    # 대화 출력
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
 
-# 입력 처리
-if prompt := st.chat_input("무엇이든 물어보세요!"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    # 입력 처리
+    if prompt := st.chat_input("무엇이든 물어보세요!"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-    with st.chat_message("assistant"):
-        # 1. 스킬 목록 (스트리밍 불필요)
-        if prompt in ["목록", "조회", "스킬", "내 스킬"]:
-            res = db.get_my_skills(st.session_state.user_id)
-            st.markdown(res)
-            st.session_state.messages.append({"role": "assistant", "content": res})
-        # 2. 스킬 저장 (스트리밍 불필요)
-        elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
-            s, l = prompt.split()
-            db.save_skill(st.session_state.user_id, s, int(l))
-            res = f"✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
-            st.markdown(res)
-            st.session_state.messages.append({"role": "assistant", "content": res})
-        
-        # 3. AI 답변이 필요한 모든 경우 (스트리밍 적용)
-        else:
-            # 🌟🌟🌟 st.write_stream으로 실시간 타이핑 효과 구현 🌟🌟🌟
-            with st.spinner("코버디가 생각 중... 🐣"):
-                # 추천 검색이든 일반 질문이든 모두 스트리밍으로 처리
-                if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
-                    stream = ai.search_all_platforms(prompt, user_key, stream=True) # search_all_platforms가 스트림을 반환하도록 수정 필요
-                elif "retriever" in st.session_state and st.session_state.retriever:
-                    docs = st.session_state.retriever.invoke(prompt)
-                    ctx = "\n".join([d.page_content for d in docs])
-                    stream = ai.ask_ai_stream(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
-                else:
-                    stream = ai.ask_ai_stream(prompt, user_key)
-                
-                # st.write_stream은 스트림이 끝나면 전체 텍스트를 반환합니다.
-                full_response = st.write_stream(stream)
-                
-                # 전체 응답을 세션에 저장
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
+        with st.chat_message("assistant"):
+            # 1. 스킬 목록 (스트리밍 불필요)
+            if prompt in ["목록", "조회", "스킬", "내 스킬"]:
+                res = db.get_my_skills(st.session_state.user_id)
+                st.markdown(res)
+                st.session_state.messages.append({"role": "assistant", "content": res})
+            # 2. 스킬 저장 (스트리밍 불필요)
+            elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
+                s, l = prompt.split()
+                db.save_skill(st.session_state.user_id, s, int(l))
+                res = f"✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
+                st.markdown(res)
+                st.session_state.messages.append({"role": "assistant", "content": res})
+            
+            # 3. AI 답변이 필요한 모든 경우 (스트리밍 적용)
+            else:
+                with st.spinner("코버디가 생각 중... 🐣"):
+                    # 추천 검색이든 일반 질문이든 모두 스트리밍으로 처리
+                    if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
+                        stream = ai.search_all_platforms(prompt, user_key, stream=True)
+                    elif "retriever" in st.session_state and st.session_state.retriever:
+                        docs = st.session_state.retriever.invoke(prompt)
+                        ctx = "\n".join([d.page_content for d in docs])
+                        stream = ai.ask_ai_stream(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
+                    else:
+                        stream = ai.ask_ai_stream(prompt, user_key)
+                    
+                    full_response = st.write_stream(stream)
+                    
+                    # 전체 응답을 세션에 저장
+                    st.session_state.messages.append({"role": "assistant", "content": full_response})
