@@ -202,15 +202,20 @@ if st.session_state.user_id: # 로그인 성공 후
             st.session_state.clear()
             st.rerun()
 
-# 7. 메인 화면 출력 (관리자 또는 채팅)
-    if st.session_state.get("show_admin"):
-        # ... (관리자 대시보드 출력 코드) ...
-        st.title("📊 관리자 대시보드")
-        u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
-        
-        col1, col2 = st.columns(2)
-    col1.metric("총 가입자 수", f"{u_cnt}명")
-    col2.metric("총 등록 스킬", f"{s_cnt}개")
+# --- [메인 화면 영역 수정] ---
+if st.session_state.get("show_admin"):
+    # 관리자 대시보드 출력 시작
+    st.title("📊 관리자 대시보드")
+    u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
+    
+    # 🌟🌟🌟 col1, col2 정의는 여기서 이루어져야 합니다. 🌟🌟🌟
+    col1, col2 = st.columns(2)
+    # 🌟🌟🌟 ------------------------------------------------ 🌟🌟🌟
+    
+    with col1: # with col1: 블록을 사용하여 metric을 감쌉니다.
+        st.metric("총 가입자 수", f"{u_cnt}명")
+    with col2: # with col2: 블록을 사용하여 metric을 감쌉니다.
+        st.metric("총 등록 스킬", f"{s_cnt}개")
     
     st.write("### 👥 사용자 목록 (구글 로그인 정보 포함)")
     st.dataframe(u_list, use_container_width=True)
