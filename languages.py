@@ -1,6 +1,5 @@
 # languages.py
 
-# 2. 다국어 데이터 (Dictionary)
 TRANS = {
     "KR": {
         "title": "🐣 코버디",
@@ -21,7 +20,7 @@ TRANS = {
         "api_success": "✅ API 키 적용 완료 (AI 사용 가능)",
         "api_info": "💡 키를 입력하지 않으면 시스템 기본 설정을 사용합니다.",
         "pdf_title": "📚 스마트 PDF 학습",
-        "pdf_info": "여기에 PDF를 올려주세요. (다중 업로드 가능)",
+        "pdf_info": "여기에 PDF를 올려주세요. 모든 파일이 누적되어 분석됩니다.",
         "pdf_upload_label": "파일 업로드",
         "pdf_analyzing": "문서를 분석 중입니다...",
         "pdf_done": "학습 완료!",
@@ -38,7 +37,7 @@ TRANS = {
         "ai_thinking": "코버디가 생각 중... 🐣",
         "ai_searching": "🔍 최신 정보를 수집하고 있어요...",
         "ai_reading": "📄 문서를 꼼꼼히 읽고 있어요...",
-        "prompt_lang": "Korean",  # AI에게 지시할 언어
+        "prompt_lang": "Korean",
         "err_info": "정보가 일치하지 않아요.",
         "err_len": "길이가 부족해요.",
         "success_signup": "가입 완료! 로그인 탭으로 가주세요.",
@@ -82,7 +81,7 @@ TRANS = {
         "ai_thinking": "CoBuddy is thinking... 🐣",
         "ai_searching": "🔍 Searching global communities...",
         "ai_reading": "📄 Reading documents carefully...",
-        "prompt_lang": "English", # AI에게 지시할 언어
+        "prompt_lang": "English",
         "err_info": "Invalid credentials.",
         "err_len": "Input too short.",
         "success_signup": "Signed up! Please login.",
