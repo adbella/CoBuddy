@@ -163,18 +163,27 @@ with st.sidebar:
 
 # --- [메인 화면 영역 수정] ---
 if st.session_state.get("show_admin"):
-    # ... (관리자 대시보드 출력 코드) ...
-    # 이 부분은 메인 화면의 맨 위에 배치되어야 합니다.
+    # 관리자 대시보드 출력 시작
     st.title("📊 관리자 대시보드")
     u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
     
-    # ... (생략: 통계 및 데이터프레임 출력 코드) ...
+    col1, col2 = st.columns(2)
+    col1.metric("총 가입자 수", f"{u_cnt}명")
+    col2.metric("총 등록 스킬", f"{s_cnt}개")
     
+    st.write("### 👥 사용자 목록 (구글 로그인 정보 포함)")
+    st.dataframe(u_list, use_container_width=True)
+    
+    st.write("### 🛠️ 전체 사용자 스킬 현황")
+    st.dataframe(s_list, use_container_width=True)
+    
+    # 🌟🌟🌟 이 부분이 에러가 났던 부분입니다 🌟🌟🌟
     if st.button("채팅으로 돌아가기", key="close_admin_chat_btn"):
         st.session_state.show_admin = False
         st.rerun()
-    st.stop() # 관리자 화면이 켜지면 채팅은 표시하지 않고 여기서 멈춤
-
+    # 🌟🌟🌟 ------------------------------------ 🌟🌟🌟
+    
+    st.stop() # 관리자 화면이 켜지면 여기서 앱 실행을 멈춤
 if show_admin:
     st.title("📊 관리자 대시보드")
     u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
