@@ -164,23 +164,32 @@ def authenticate_user(nickname, password):
     finally: conn.close()
 
 def get_admin_stats():
-    """관리자용: Pandas를 사용하지 않고 직접 데이터를 가져와 안정성 확보"""
+    """관리자용: 가입 유형(일반/구글)을 포함한 전체 통계 데이터 가져오기"""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        user_cols = ["user_id", "nickname", "last_login"]
+        # 최종적으로 보여줄 컬럼들
+        user_display_cols = ["user_id", "nickname", "가입 유형", "last_login"]
         skill_cols = ["user_id", "skill_name", "level", "added_at"]
         
-        # 1. 사용자 목록 직접 조회
-        cursor.execute("SELECT user_id, nickname, last_login FROM users")
+        # 1. 사용자 목록 직접 조회 (password_hash 포함)
+        cursor.execute("SELECT user_id, nickname, last_login, password_hash FROM users")
         user_rows = cursor.fetchall()
         
         # 2. 스킬 목록 직접 조회
         cursor.execute("SELECT user_id, skill_name, level, added_at FROM my_skills")
         skill_rows = cursor.fetchall()
         
-        # 3. Pandas DataFrame으로 변환
-        u_list = pd.DataFrame(user_rows, columns=user_cols) if user_rows else pd.DataFrame(columns=user_cols)
+        # 3. Pandas DataFrame으로 변환 및 가공
+        if user_rows:
+            u_list = pd.DataFrame(user_rows)
+            # 'password_hash' 값에 따라 '가입 유형' 열 생성
+            u_list['가입 유형'] = u_list['password_hash'].apply(lambda x: '구글 🚀' if x == 'GOOGLE_OAUTH' else '일반 🔑')
+            # 불필요한 password_hash 열은 삭제하고, 순서 재정렬
+            u_list = u_list[user_display_cols]
+        else:
+            u_list = pd.DataFrame(columns=user_display_cols)
+
         s_list = pd.DataFrame(skill_rows, columns=skill_cols) if skill_rows else pd.DataFrame(columns=skill_cols)
             
         return len(u_list), len(s_list), u_list, s_list
