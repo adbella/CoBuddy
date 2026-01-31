@@ -218,10 +218,12 @@ if st.session_state.get("show_admin"):
         st.metric("총 등록 스킬", f"{s_cnt}개")
     
     st.write("### 👥 사용자 목록 (구글 로그인 정보 포함)")
-    st.dataframe(u_list, use_container_width=True)
+    # 🌟🌟🌟 display_labels=False 옵션 추가 🌟🌟🌟
+    st.dataframe(u_list, use_container_width=True, hide_index=True)
     
     st.write("### 🛠️ 전체 사용자 스킬 현황")
-    st.dataframe(s_list, use_container_width=True)
+    # 🌟🌟🌟 display_labels=False 옵션 추가 🌟🌟🌟
+    st.dataframe(s_list, use_container_width=True, hide_index=True)
     
     if st.button("채팅으로 돌아가기", key="close_admin_chat_btn"):
         st.session_state.show_admin = False

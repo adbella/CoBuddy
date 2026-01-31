@@ -167,16 +167,16 @@ def get_admin_stats():
     """관리자용: 전체 통계 데이터 가져오기"""
     conn = get_db_connection()
     try:
-        # 데이터프레임이 비어있을 때를 대비하여 컬럼명 명시
         user_cols = ["user_id", "nickname", "last_login"]
         skill_cols = ["user_id", "skill_name", "level", "added_at"]
         
-        # 1. 사용자 목록 조회
-        u_list = pd.read_sql("SELECT user_id, nickname, last_login FROM users", conn)
-        # 2. 스킬 목록 조회
-        s_list = pd.read_sql("SELECT * FROM my_skills", conn)
+        # 1. 사용자 목록 조회 (인덱스 없이)
+        u_list = pd.read_sql("SELECT user_id, nickname, last_login FROM users", conn, index_col=None)
+        # 2. 스킬 목록 조회 (인덱스 없이)
+        s_list = pd.read_sql("SELECT * FROM my_skills", conn, index_col=None)
 
-        # 데이터가 없으면 빈 데이터프레임을 만들어서 컬럼을 유지합니다.
+        # 데이터가 없으면 빈 데이터프레임을 만들고 컬럼을 명시하여,
+        # Streamlit이 출력 시 오류나 중복 헤더를 만들지 않도록 합니다.
         if u_list.empty:
             u_list = pd.DataFrame(columns=user_cols)
         if s_list.empty:
