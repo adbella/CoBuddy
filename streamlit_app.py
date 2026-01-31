@@ -276,7 +276,7 @@ if st.session_state.user_id:
             st.session_state.messages.append({"role": "assistant", "content": res})
         
         # 3. AI 답변 (실시간 스트리밍 적용)
-        else:
+            else:
             stream_generator = None
             
             # (A) 검색/추천
