@@ -11,28 +11,44 @@ def check_api_key_validity(api_key):
     return True # 그냥 True 반환하도록 수정
 
 def ask_ai(prompt, user_key=None):
+    """AI에게 질문하고 전체 답변을 한 번에 받는 함수 (내부 요약용)"""
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
-    
-    if not api_key: return "⚠️ API 키가 설정되지 않았습니다. 답변을 위해 키가 필요합니다."
+    if not api_key: return "⚠️ API 키가 설정되지 않았습니다."
     
     try:
         client = Client(api_key=api_key)
-        # 🌟🌟🌟 404 에러 우회 및 최신 모델 gemini-2.5-flash 사용 🌟🌟🌟
         response = client.models.generate_content(
-            model='gemini-2.5-flash', # 모델 고정
+            model='gemini-1.5-flash',
             contents=prompt,
             config={'temperature': 0.7}
         )
         return response.text
-        
-    except APIError as e:
-        key_len = len(api_key)
-        # 키 유효성 검사 로직 추가 (키 길이가 짧으면 확실히 에러)
-        if key_len < 30:
-            return f"❌ API 키 길이가 너무 짧습니다. 키가 유효한지 확인해주세요. (길이: {key_len})"
-        return f"❌ AI 호출 실패: 모델 경로 인식 오류 (404). 키 길이는 정상. (에러: {e})"
     except Exception as e:
-        return f"❌ AI 호출 실패: 예상치 못한 오류 발생. (에러: {e})"
+        return f"❌ AI 호출 실패: {e}"
+
+def ask_ai_stream(prompt, user_key=None):
+    """AI에게 질문하고 답변을 실시간 스트림으로 받는 함수 (타이핑 효과용)"""
+    api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
+    if not api_key:
+        yield "⚠️ API 키가 설정되지 않았습니다."
+        return
+
+    try:
+        client = Client(api_key=api_key)
+        # 🌟🌟🌟 stream=True 옵션을 사용하여 스트리밍 응답 요청 🌟🌟🌟
+        response_stream = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt,
+            stream=True,
+            config={'temperature': 0.7}
+        )
+        
+        # 스트림에서 각 텍스트 조각(chunk)을 실시간으로 반환(yield)
+        for chunk in response_stream:
+            yield chunk.text
+            
+    except Exception as e:
+        yield f"❌ AI 호출 실패: {e}"
 
 # --- 플랫폼별 데이터 수집 함수들 ---
 
@@ -70,7 +86,7 @@ def get_devto_data(query):
         return "=== Dev.to 기술 아티클 ===\n" + "\n".join([f"- {a['title']}: {a['url']}" for a in res])
     except: return ""
 
-def search_all_platforms(message, user_key=None):
+def search_all_platforms(message, user_key=None, stream=False):
     query = message.replace("추천", "").replace("찾아줘", "").replace("검색", "").strip()
     if not query: query = "new programming projects"
 
@@ -98,4 +114,8 @@ def search_all_platforms(message, user_key=None):
     한국어로 답변하고, 초보자가 이해하기 쉽게 설명해주세요.
     마지막엔 '오늘도 당신의 성장을 코버디가 응원해요! 🔥'라고 말해주세요.
     """
-    return ask_ai(prompt, user_key)
+    # 🌟🌟🌟 스트리밍 여부에 따라 다른 함수 호출 🌟🌟🌟
+    if stream:
+        return ask_ai_stream(prompt, user_key)
+    else:
+        return ask_ai(prompt, user_key)

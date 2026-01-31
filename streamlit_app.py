@@ -251,31 +251,39 @@ for m in st.session_state.messages:
 # 입력 처리
 if prompt := st.chat_input("무엇이든 물어보세요!"):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): st.markdown(prompt)
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        # 1. 스킬 목록
+        # 1. 스킬 목록 (스트리밍 불필요)
         if prompt in ["목록", "조회", "스킬", "내 스킬"]:
             res = db.get_my_skills(st.session_state.user_id)
-        # 2. 스킬 저장
+            st.markdown(res)
+            st.session_state.messages.append({"role": "assistant", "content": res})
+        # 2. 스킬 저장 (스트리밍 불필요)
         elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
             s, l = prompt.split()
             db.save_skill(st.session_state.user_id, s, int(l))
             res = f"✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
-        # 3. 실시간 추천/검색
-        elif any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
-            with st.status("🌐 여러 플랫폼에서 최신 정보를 수집하는 중...") as status:
-                res = ai.search_all_platforms(prompt, user_key)
-                status.update(label="✅ 검색 및 분석 완료!", state="complete")
-        # 4. PDF 답변
-        elif "retriever" in st.session_state and st.session_state.retriever:
-            with st.spinner("문서에서 정답을 찾는 중..."):
-                docs = st.session_state.retriever.invoke(prompt)
-                ctx = "\n".join([d.page_content for d in docs])
-                res = ai.ask_ai(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
-        # 5. 일반 질문
+            st.markdown(res)
+            st.session_state.messages.append({"role": "assistant", "content": res})
+        
+        # 3. AI 답변이 필요한 모든 경우 (스트리밍 적용)
         else:
-            res = ai.ask_ai(prompt, user_key)
-            
-        st.markdown(res)
-        st.session_state.messages.append({"role": "assistant", "content": res})
+            # 🌟🌟🌟 st.write_stream으로 실시간 타이핑 효과 구현 🌟🌟🌟
+            with st.spinner("코버디가 생각 중... 🐣"):
+                # 추천 검색이든 일반 질문이든 모두 스트리밍으로 처리
+                if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
+                    stream = ai.search_all_platforms(prompt, user_key, stream=True) # search_all_platforms가 스트림을 반환하도록 수정 필요
+                elif "retriever" in st.session_state and st.session_state.retriever:
+                    docs = st.session_state.retriever.invoke(prompt)
+                    ctx = "\n".join([d.page_content for d in docs])
+                    stream = ai.ask_ai_stream(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
+                else:
+                    stream = ai.ask_ai_stream(prompt, user_key)
+                
+                # st.write_stream은 스트림이 끝나면 전체 텍스트를 반환합니다.
+                full_response = st.write_stream(stream)
+                
+                # 전체 응답을 세션에 저장
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
