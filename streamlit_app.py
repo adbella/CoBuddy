@@ -93,28 +93,38 @@ if not st.session_state.user_id:
 with st.sidebar:
     st.markdown(f"### 👋 {st.session_state.user_nick}님 반가워요!")
     
-    # AI 설정
     st.markdown("### 🔑 API 설정")
+    st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
+    
+    # Secrets의 키를 기본값으로 사용
     default_key = st.secrets.get("GOOGLE_API_KEY", "")
     
-    # 🌟🌟🌟 key="user_gemini_key"를 사용하여 값이 세션에 유지되도록 함 🌟🌟🌟
-    user_key = st.text_input(
-        "Gemini API Key 입력", 
-        type="password", 
-        value=default_key, # Secrets의 키를 기본값으로 사용
-        key="user_gemini_key_input", # 고유한 새 키 사용
-        help="Google AI Studio에서 발급받은 API 키를 여기에 입력/수정하세요."
-    )
-    st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
+    # 🌟🌟🌟 유효한 키가 이미 있으면 입력창을 숨김 처리 🌟🌟🌟
+    effective_key = default_key # 일단 Secrets 키를 유효하다고 가정
+    
+    # 만약 Secrets에 키가 없거나 사용자가 새 키를 입력할 때만 입력창을 보여줌
+    if not effective_key or st.session_state.get("show_key_input", False):
+        user_key = st.text_input(
+            "Gemini API Key 입력", 
+            type="password", 
+            value=default_key,
+            key="user_gemini_key_input",
+            help="여기에 키를 입력하거나 수정하세요."
+        )
+        effective_key = user_key # 사용자가 입력한 키가 새로운 유효 키가 됨
+        
+        # 키를 입력하면 세션 상태를 False로 바꿔 입력창을 숨김
+        if user_key and user_key != default_key:
+            st.session_state.show_key_input = False
+            st.rerun()
+            
+    # 키가 입력된 후에는 숨김 처리 대신 버튼을 통해 수정을 유도
+    elif effective_key:
+        st.success("✅ API 키 적용 완료. (AI 기능 사용 가능)")
+        if st.button("키 수정/변경", key="modify_key_btn"):
+            st.session_state.show_key_input = True
+            st.rerun()
 
-    # 🌟🌟🌟 키가 Secrets에 있거나 사용자가 입력했는지 확인 🌟🌟🌟
-    effective_key = user_key if user_key else default_key
-    
-    if effective_key:
-        st.success("✅ API 키 유효성 검사 준비 완료. (AI 기능 사용 가능)")
-    else:
-        st.info("💡 키를 입력하지 않으면 AI 기능이 작동하지 않습니다.")
-    
     st.divider()
 
     # PDF 업로드 영역 (UI 개선)
