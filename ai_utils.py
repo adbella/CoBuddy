@@ -3,31 +3,43 @@ import requests
 import concurrent.futures
 from google.genai import Client
 from google.genai.errors import APIError
-from google import genai
+
 
 def check_api_key_validity(api_key):
+    """API 키가 유효한지 체크하는 함수 (간접 확인)"""
     try:
-        client = genai.Client(api_key=api_key)
-        client.models.list()
+        # 키가 짧거나 이상하면 바로 False 반환
+        if not api_key or len(api_key) < 30:
+            return False
+        # 유효한 클라이언트 생성 시도 (API 호출)
+        client = Client(api_key=api_key)
+        # client.models.list() 호출 대신 간단한 테스트 호출로 변경 (더 안정적)
+        test_response = client.models.generate_content(model='gemini-pro', contents='test', config={'temperature': 0.7})
         return True
-    except Exception:
+    except Exception as e:
         return False
 
 def ask_ai(prompt, user_key=None):
-    """AI에게 질문하고 전체 답변을 한 번에 받는 함수 (내부 요약용)"""
     api_key = user_key if user_key else st.secrets.get("GOOGLE_API_KEY")
     if not api_key: return "⚠️ API 키가 설정되지 않았습니다."
+    
+    # 🌟🌟🌟 모델 명칭 우회 🌟🌟🌟
+    model_name = 'gemini-1.5-pro' # 최신 모델로 우회 시도
     
     try:
         client = Client(api_key=api_key)
         response = client.models.generate_content(
-            model='gemini-pro', # gemini-pro로 통일
+            model=model_name, 
             contents=prompt,
             config={'temperature': 0.7}
         )
         return response.text
+    except APIError as e:
+        # API 오류 (404, 권한 등)
+        key_len = len(api_key)
+        return f"❌ AI 호출 실패: API 오류 발생. 키 길이: {key_len}. (에러: {e})"
     except Exception as e:
-        return f"❌ AI 호출 실패: {e}"
+        return f"❌ AI 호출 실패: 예상치 못한 오류 발생. (에러: {e})"
 # --- 플랫폼별 데이터 수집 함수들 ---
 
 def get_github_data(query):
