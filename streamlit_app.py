@@ -91,115 +91,100 @@ if not st.session_state.user_id:
                 st.link_button("🔵 Google 계정으로 로그인", url, use_container_width=True)
     st.stop()
 
-# 6. 로그인 후 (전체 사이드바 및 메인 로직)
-# 이 블록은 5번 블록의 st.stop() 때문에 로그인 성공 후에만 실행됩니다
-
-# --- [3] 로그인 후 사이드바 전체 코드] ---
+    # 6. 로그인 후 (전체 사이드바 및 메인 로직)
 if st.session_state.user_id: # 로그인 성공 후
     
     # 🌟🌟🌟 사이드바 전체를 하나의 with st.sidebar로 묶습니다. 🌟🌟🌟
     with st.sidebar:
         st.markdown(f"### 👋 {st.session_state.user_nick}님 반가워요!")
         
-    # AI 설정
-    st.markdown("### 🔑 API 설정")
-    st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
-    
-    # Secrets의 키를 기본값으로 사용
-    default_key = st.secrets.get("GOOGLE_API_KEY", "")
-    
-    # 세션 상태 초기화 및 키 값 설정
-    if "show_key_input" not in st.session_state:
-        st.session_state.show_key_input = False
-    if "user_key_value" not in st.session_state:
-        st.session_state.user_key_value = default_key
+        # AI 설정
+        st.markdown("### 🔑 API 설정")
+        st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
         
-    effective_key = st.session_state.user_key_value
-
-    # 1. 키 입력창 노출 조건 및 마스킹
-    if st.session_state.show_key_input or not effective_key:
+        # Secrets의 키를 기본값으로 사용
+        default_key = st.secrets.get("GOOGLE_API_KEY", "")
         
-        masked_key = "********" if effective_key else ""
-        
-        user_input_key = st.text_input(
-            "Gemini API Key 입력", 
-            type="password", 
-            value=masked_key, 
-            key="user_gemini_key_input",
-            help="여기에 키를 입력하거나 수정하세요."
-        )
-##############################################################
-        # 새 키를 입력했을 때 처리
-    if user_input_key and user_input_key != masked_key:
-        st.session_state.user_key_value = user_input_key 
-        st.session_state.show_key_input = False
-        st.rerun()
+        # 세션 상태 초기화 및 키 값 설정
+        if "show_key_input" not in st.session_state: st.session_state.show_key_input = False
+        if "user_key_value" not in st.session_state: st.session_state.user_key_value = default_key
             
-    if effective_key: # 키를 숨길 때 사용할 '취소' 버튼
-            if st.button("입력 취소", key="cancel_key_input"):
+        effective_key = st.session_state.user_key_value
+        user_input_key = None # 🌟🌟🌟 NameError 방지용 초기값 설정 🌟🌟🌟
+
+        # 1. 키 입력창 노출 조건 및 마스킹
+        if st.session_state.show_key_input or not effective_key:
+            
+            masked_key = "********" if effective_key else ""
+            
+            user_input_key = st.text_input( # 👈 여기서 user_input_key가 정의됨
+                "Gemini API Key 입력", 
+                type="password", 
+                value=masked_key, 
+                key="user_gemini_key_input",
+                help="여기에 키를 입력하거나 수정하세요."
+            )
+
+            # 새 키를 입력했을 때 처리
+            if user_input_key and user_input_key != masked_key:
+                st.session_state.user_key_value = user_input_key 
                 st.session_state.show_key_input = False
                 st.rerun()
-    
-    # 2. 키가 유효할 때의 표시 및 수정 버튼
-    else: 
-        st.success("✅ API 키 적용 완료. (AI 기능 사용 가능)")
-        st.caption("키는 보안을 위해 숨김 처리되었습니다.")
-        
-        if st.button("키 수정/변경", key="modify_key_btn"):
-            st.session_state.show_key_input = True
-            st.rerun()
-
-        # user_key 변수 업데이트 (메인 로직에서 사용할 키)
-    user_key = effective_key
-    st.divider()
-
-    # PDF 업로드 영역 (UI 개선)
-    st.markdown("### 📚 스마트 PDF 학습")
-    st.info("여기에 공부할 PDF 파일을 올려주세요. 모든 파일이 누적되어 분석됩니다.") # 문구 수정
-    
-    # 세션 상태에 파일 리스트 초기화
-    if "uploaded_file_list" not in st.session_state:
-        st.session_state.uploaded_file_list = []
-        st.session_state.processed_file_names = set() # 처리 완료된 파일 이름 목록
-
-    # 🌟🌟🌟 다중 파일 업로더 (여러 파일 선택 가능) 🌟🌟🌟
-    new_uploaded_files = st.file_uploader(
-        "파일 업로드 (PDF 전용)", 
-        type=["pdf"], 
-        key="pdf_uploader",
-        accept_multiple_files=True, # 다중 파일 업로드 허용
-        label_visibility="collapsed"
-    )
-    
-    # 🌟🌟🌟 파일 처리 로직 🌟🌟🌟
-    if new_uploaded_files: 
-        # 새로 업로드된 파일이 있다면 처리
-        newly_added = []
-        for file in new_uploaded_files:
-            # 아직 처리되지 않은 파일만 리스트에 추가
-            if file.name not in st.session_state.processed_file_names:
-                newly_added.append(file)
-                st.session_state.processed_file_names.add(file.name)
-
-        if newly_added:
-            # 1. 새로 추가된 파일들을 기존 리스트에 합침
-            st.session_state.uploaded_file_list.extend(newly_added)
-            
-            # 2. 통합 분석 시작
-            with st.spinner(f"코버디가 {len(st.session_state.uploaded_file_list)}개 문서를 통합 분석 중... 📖"):
-                # 통합 분석 함수 호출 (업로드된 전체 리스트 전달)
-                st.session_state.retriever = rag.process_multiple_pdfs(st.session_state.uploaded_file_list)
-                st.success(f"✅ 총 {len(st.session_state.uploaded_file_list)}개 문서 통합 학습 완료!")
                 
-        # 현재 학습 상태 표시
-        if st.session_state.uploaded_file_list:
-            file_names = st.session_state.uploaded_file_list
-            st.caption(f"📍 현재 학습 중인 문서: {len(file_names)}개")
+            if effective_key: # 키를 숨길 때 사용할 '취소' 버튼
+                if st.button("입력 취소", key="cancel_key_input"):
+                    st.session_state.show_key_input = False
+                    st.rerun()
+        
+        # 2. 키가 유효할 때의 표시 및 수정 버튼
+        else: 
+            st.success("✅ API 키 적용 완료. (AI 기능 사용 가능)")
+            st.caption("키는 보안을 위해 숨김 처리되었습니다.")
             
-            # 리스트를 보여주는 확장 메뉴 (선택사항)
-            with st.expander("학습 문서 목록 보기"):
-                for file in file_names:
-                    st.write(f"- {file.name}")
+            if st.button("키 수정/변경", key="modify_key_btn"):
+                st.session_state.show_key_input = True
+                st.rerun()
+
+        # user_key 변수 업데이트 (메인 로직에서 사용할 최종 키)
+        if st.session_state.show_key_input and user_input_key and user_input_key != "********":
+             user_key = user_input_key # 사용자가 입력 중인 새 키
+        else:
+             user_key = effective_key # 세션에 저장된 키
+        
+        st.divider()
+
+        # PDF 업로드 영역 (UI 개선)
+        st.markdown("### 📚 스마트 PDF 학습")
+        st.info("여기에 공부할 PDF 파일을 올려주세요. 모든 파일이 누적되어 분석됩니다.")
+        
+        # 세션 상태에 파일 리스트 초기화 및 업로더 로직 (생략: 기존과 동일)
+        if "uploaded_file_list" not in st.session_state:
+            st.session_state.uploaded_file_list = []
+            st.session_state.processed_file_names = set()
+
+        new_uploaded_files = st.file_uploader(
+            "파일 업로드 (PDF 전용)", type=["pdf"], key="pdf_uploader", accept_multiple_files=True, label_visibility="collapsed")
+        
+        if new_uploaded_files: 
+            newly_added = []
+            for file in new_uploaded_files:
+                if file.name not in st.session_state.processed_file_names:
+                    newly_added.append(file)
+                    st.session_state.processed_file_names.add(file.name)
+
+            if newly_added:
+                st.session_state.uploaded_file_list.extend(newly_added)
+                with st.spinner(f"코버디가 {len(st.session_state.uploaded_file_list)}개 문서를 통합 분석 중... 📖"):
+                    st.session_state.retriever = rag.process_multiple_pdfs(st.session_state.uploaded_file_list)
+                    st.success(f"✅ 총 {len(st.session_state.uploaded_file_list)}개 문서 통합 학습 완료!")
+                    
+            if st.session_state.uploaded_file_list:
+                file_names = st.session_state.uploaded_file_list
+                st.caption(f"📍 현재 학습 중인 문서: {len(file_names)}개")
+                
+                with st.expander("학습 문서 목록 보기"):
+                    for file in file_names:
+                        st.write(f"- {file.name}")
 
         st.divider()
 
@@ -207,10 +192,10 @@ if st.session_state.user_id: # 로그인 성공 후
         is_admin = st.session_state.user_nick in ["안종호"] 
         if is_admin:
             st.markdown("### 👑 관리자 메뉴")
-            if "show_admin" not in st.session_state:
-                st.session_state.show_admin = False
-                
-        st.session_state.show_admin = st.checkbox("관리자 대시보드 보기", key="admin_chk")
+            if "show_admin" not in st.session_state: st.session_state.show_admin = False
+            st.session_state.show_admin = st.checkbox("관리자 대시보드 보기", key="admin_chk")
+
+        st.divider()
         
         # 로그아웃 버튼
         if st.button("🚪 로그아웃", key="sidebar_logout_btn", use_container_width=True): 
