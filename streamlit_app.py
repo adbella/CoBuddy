@@ -1,20 +1,25 @@
 import streamlit as st
-import db_manager as db  # database 대신 db_manager를 불러옵니다.
+import db_manager as db
 import ai_utils as ai
 import rag_utils as rag
 import urllib.parse
 import requests
 
+# 1. 페이지 설정
 st.set_page_config(page_title="코버디 🐣", layout="wide")
 
-# DB 초기화
+# 2. 데이터베이스 초기화
 db.init_db()
 
-# 세션 상태 초기화
-if "user_id" not in st.session_state: st.session_state.user_id = None
-if "messages" not in st.session_state: st.session_state.messages = []
+# 3. 세션 상태 초기화
+if "user_id" not in st.session_state:
+    st.session_state.user_id = None
+if "user_nick" not in st.session_state:
+    st.session_state.user_nick = None
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# --- [1] 구글 OAuth 콜백 처리 ---
+# 4. 구글 로그인 콜백 처리
 if "code" in st.query_params and st.session_state.user_id is None:
     code = st.query_params["code"]
     try:
@@ -41,9 +46,9 @@ if "code" in st.query_params and st.session_state.user_id is None:
             st.query_params.clear()
             st.rerun()
     except Exception as e:
-        st.error(f"구글 로그인 처리 중 오류: {e}")
+        st.error(f"구글 로그인 처리 중 오류 발생: {e}")
 
-# --- [2] 로그인 전 화면 ---
+# 5. 로그인 전 화면
 if not st.session_state.user_id:
     st.title("🐣 코버디: 초보 개발자의 성장 단짝")
     tab1, tab2, tab3 = st.tabs(["🔑 로그인", "✨ 회원가입", "🚀 구글 로그인"])
@@ -58,22 +63,25 @@ if not st.session_state.user_id:
                     st.session_state.user_id = user['user_id']
                     st.session_state.user_nick = login_nick
                     st.rerun()
-                else: st.error("로그인 정보를 확인하세요.")
+                else:
+                    st.error("닉네임 또는 비밀번호를 확인해주세요.")
 
     with tab2:
         with st.form("signup_form"):
-            new_nick = st.text_input("새 닉네임", key="signup_nick_input")
-            new_pw = st.text_input("새 비밀번호", type="password", key="signup_pw_input")
+            new_nick = st.text_input("사용할 닉네임", key="signup_nick_input")
+            new_pw = st.text_input("비밀번호 (6자 이상)", type="password", key="signup_pw_input")
             confirm_pw = st.text_input("비밀번호 확인", type="password", key="signup_confirm_pw")
-            if st.form_submit_button("회원가입 ✨"):
-                if len(new_nick) < 3 or len(new_pw) < 6:
-                    st.warning("닉네임 3자, 비밀번호 6자 이상 필요")
+            if st.form_submit_button("회원가입 완료 ✨"):
+                if len(new_nick) < 2 or len(new_pw) < 6:
+                    st.warning("닉네임은 2자, 비밀번호는 6자 이상 입력해주세요.")
                 elif new_pw != confirm_pw:
-                    st.error("비밀번호 불일치")
+                    st.error("비밀번호가 일치하지 않습니다.")
                 else:
                     success, msg = db.create_user(new_nick, new_pw)
-                    if success: st.success("가입 완료! 로그인 해주세요.")
-                    else: st.error(msg)
+                    if success:
+                        st.success("회원가입 성공! 로그인 탭에서 로그인해주세요.")
+                    else:
+                        st.error(msg)
 
     with tab3:
         if "google_oauth" in st.secrets:
@@ -88,50 +96,77 @@ if not st.session_state.user_id:
             auth_url = f"https://accounts.google.com/o/oauth2/auth?{urllib.parse.urlencode(params)}"
             st.link_button("🔵 구글 계정으로 로그인", auth_url, use_container_width=True)
         else:
-            st.info("Secrets 설정을 확인해주세요.")
+            st.info("💡 구글 로그인 설정(Secrets)을 확인해주세요.")
     st.stop()
 
-# --- [3] 로그인 후 메인 화면 ---
+# 6. 로그인 후 메인 화면 (사이드바)
 with st.sidebar:
-    st.write(f"### 👋 {st.session_state.user_nick}님")
-    user_key = st.text_input("Gemini API Key (선택)", type="password", key="user_gemini_key")
+    st.write(f"### 👋 {st.session_state.user_nick}님 반가워요!")
     
-    st.divider()
-    pdf_file = st.file_uploader("PDF 학습 자료", type="pdf", key="pdf_uploader")
-    if pdf_file and "retriever" not in st.session_state:
-        with st.spinner("PDF 분석 중..."):
-            st.session_state.retriever = rag.process_pdf(pdf_file)
-            st.success("PDF 준비 완료!")
+    # AI 설정
+    st.markdown("### 🔑 AI 설정")
+    user_key = st.text_input("Gemini API Key 입력", type="password", key="user_gemini_key", help="Google AI Studio에서 발급받은 키를 입력하세요.")
+    if user_key:
+        st.success("✅ API 키가 적용되었습니다!")
+    else:
+        st.info("💡 키가 없으면 기본 설정을 사용합니다.")
 
     st.divider()
+    
+    # PDF 학습 기능
+    st.markdown("### 📚 스마트 문서 학습")
+    st.write("학습 자료(PDF)를 올리면 코버디가 내용을 분석해 질문에 답변해 드립니다.")
+    pdf_file = st.file_uploader("PDF 파일을 선택하세요", type=["pdf"], key="pdf_uploader")
+    
+    if pdf_file:
+        if "current_pdf" not in st.session_state or st.session_state.current_pdf != pdf_file.name:
+            with st.spinner("문서를 읽고 분석하는 중... 📖"):
+                st.session_state.retriever = rag.process_pdf(pdf_file)
+                st.session_state.current_pdf = pdf_file.name
+                st.success("✅ 분석 완료! 이제 질문해 보세요.")
+        else:
+            st.caption(f"학습 중인 문서: {pdf_file.name}")
+
+    st.divider()
+    
+    # 로그아웃
     if st.button("🚪 로그아웃", key="logout_btn", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
+# 7. 메인 채팅 UI
 st.title("💬 코버디와 대화하기")
 
-# 채팅 표시
 for m in st.session_state.messages:
-    with st.chat_message(m["role"]): st.markdown(m["content"])
+    with st.chat_message(m["role"]):
+        st.markdown(m["content"])
 
-if prompt := st.chat_input("질문을 입력하세요"):
+if prompt := st.chat_input("궁금한 것을 물어보세요!"):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): st.markdown(prompt)
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        # 로직 구분
-        if len(prompt.split()) == 2 and prompt.split()[1].isdigit():
-            skill, lv = prompt.split()
-            db.save_skill(st.session_state.user_id, skill, int(lv))
-            response = f"✅ {skill} {lv}단계를 저장했습니다!"
-        elif "추천" in prompt or "찾아줘" in prompt:
-            response = ai.search_all(prompt, user_key)
-        elif "retriever" in st.session_state:
-            docs = st.session_state.retriever.invoke(prompt)
-            context = "\n".join([d.page_content for d in docs])
-            response = ai.ask_ai(f"문서 내용:\n{context}\n\n질문: {prompt}", user_key)
-        else:
-            response = ai.ask_ai(prompt, user_key)
+        with st.spinner("생각 중... 🐣"):
+            # A. 스킬 저장 (예: 파이썬 5)
+            if len(prompt.split()) == 2 and prompt.split()[1].isdigit():
+                skill, lv = prompt.split()
+                db.save_skill(st.session_state.user_id, skill, int(lv))
+                response = f"✅ **{skill}** 기술을 **{lv}단계**로 저장했습니다!"
             
-        st.markdown(response)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+            # B. 자료 추천
+            elif "추천" in prompt or "찾아줘" in prompt:
+                response = ai.search_all(prompt, user_key)
+            
+            # C. PDF 기반 답변
+            elif "retriever" in st.session_state and st.session_state.retriever:
+                docs = st.session_state.retriever.invoke(prompt)
+                context = "\n".join([d.page_content for d in docs])
+                response = ai.ask_ai(f"다음 문서 내용을 바탕으로 답변해줘:\n\n{context}\n\n질문: {prompt}", user_key)
+            
+            # D. 일반 대화
+            else:
+                response = ai.ask_ai(prompt, user_key)
+                
+            st.markdown(response)
+            st.session_state.messages.append({"role": "assistant", "content": response})
