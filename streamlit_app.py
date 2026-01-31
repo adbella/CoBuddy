@@ -119,9 +119,47 @@ if not st.session_state.user_id:
 
 # 7. 로그인 후 로직
 if st.session_state.user_id:
-    if st.session_state.show_admin:
-        st.stop()   
-    
+    with st.sidebar:
+        # 🌟 API 소진 시 최상단에 경고 표시
+        if st.session_state.api_exhausted:
+            st.error(t('api_limit_reached'))
+
+        st.markdown(f"### {t('welcome')} {st.session_state.user_nick}!")
+
+        # A. API 키 설정
+        # 할당량 초과 시 사용자가 바로 수정할 수 있게 자동으로 열어둡니다(expanded=True).
+        with st.expander(t('api_setup'), expanded=st.session_state.api_exhausted):
+            st.markdown(f"**:red[{t('api_no_key')}]** [Link](https://aistudio.google.com/app/apikey) {t('api_make_here')}")
+            
+            effective_key = st.session_state.user_key_value
+            
+            if st.session_state.show_key_input or not effective_key:
+                masked_key = "********" if effective_key else ""
+                user_input_key = st.text_input(
+                    t('api_placeholder'), 
+                    type="password", 
+                    value=masked_key, 
+                    key="user_gemini_key_input"
+                )
+                
+                if user_input_key and user_input_key != masked_key:
+                    st.session_state.user_key_value = user_input_key 
+                    st.session_state.api_exhausted = False # 🌟 새 키 입력 시 경고 해제
+                    st.session_state.show_key_input = False
+                    st.rerun()
+                
+                if effective_key and st.button("Cancel", key="cancel_key_input"):
+                    st.session_state.show_key_input = False
+                    st.rerun()
+            else:
+                st.success(t('api_success'))
+                if st.button("Change", key="modify_key_btn"):
+                    st.session_state.show_key_input = True
+                    st.rerun()
+        
+        user_key = st.session_state.user_key_value
+        st.divider()
+        
     # B. PDF 업로드
     st.markdown(f"### {t('pdf_title')}")
     st.info(t('pdf_info'))
