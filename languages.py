@@ -43,7 +43,12 @@ TRANS = {
         "success_signup": "가입 완료! 로그인 탭으로 가주세요.",
         "secrets_needed": "Secrets 설정이 필요합니다.",
         "invalid_input": "⚠️ 잘못된 입력입니다.",
-        "save_skill": "✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요."
+        "save_skill": "✅ **{s}** (Level {l}) 저장 완료! 성장하는 모습이 보기 좋아요.",
+        # --- 상태 메시지 ---
+        "status_thinking": "잠시만요, 요청하신 내용을 확인하고 있어요... 🤔",
+        "status_db_checking": "데이터베이스에서 정보를 찾는 중입니다... 🗄️",
+        "status_skill_saving": "새로운 성취를 기록하고 있습니다! ✨",
+        "status_ai_calling": "AI 멘토와 대화 내용을 정리하고 있습니다... 🐣"
     },
     "EN": {
         "title": "🐣 CoBuddy",
@@ -87,6 +92,11 @@ TRANS = {
         "success_signup": "Signed up! Please login.",
         "secrets_needed": "Secrets configuration needed.",
         "invalid_input": "⚠️ Invalid input.",
-        "save_skill": "✅ **{s}** (Level {l}) Saved! Keep growing."
+        "save_skill": "✅ **{s}** (Level {l}) Saved! Keep growing.",
+        # --- Status Messages ---
+        "status_thinking": "Wait a second, checking your request... 🤔",
+        "status_db_checking": "Checking information from the database... 🗄️",
+        "status_skill_saving": "Recording your new achievement! ✨",
+        "status_ai_calling": "Organizing the conversation with the AI mentor... 🐣"
     }
 }
