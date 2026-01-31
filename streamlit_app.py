@@ -207,29 +207,32 @@ if st.session_state.get("show_admin"):
     # 관리자 대시보드 출력 시작
     st.title("📊 관리자 대시보드")
     u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
-    
-    # 🌟🌟🌟 col1, col2 정의는 여기서 이루어져야 합니다. 🌟🌟🌟
+
     col1, col2 = st.columns(2)
-    # 🌟🌟🌟 ------------------------------------------------ 🌟🌟🌟
-    
-    with col1: # with col1: 블록을 사용하여 metric을 감쌉니다.
-        st.metric("총 가입자 수", f"{u_cnt}명")
-    with col2: # with col2: 블록을 사용하여 metric을 감쌉니다.
-        st.metric("총 등록 스킬", f"{s_cnt}개")
+    with col1: st.metric("총 가입자 수", f"{u_cnt}명")
+    with col2: st.metric("총 등록 스킬", f"{s_cnt}개")
     
     st.write("### 👥 사용자 목록 (구글 로그인 정보 포함)")
-    # 🌟🌟🌟 display_labels=False 옵션 추가 🌟🌟🌟
-    st.dataframe(u_list, use_container_width=True, hide_index=True)
     
+    # 🌟🌟🌟🌟🌟 사용자 목록 출력 우회 로직 🌟🌟🌟🌟🌟
+    if u_list.empty:
+        st.info("데이터가 없습니다. 새 사용자를 등록해주세요.")
+    else:
+        st.dataframe(u_list, use_container_width=True, hide_index=True)
+
     st.write("### 🛠️ 전체 사용자 스킬 현황")
-    # 🌟🌟🌟 display_labels=False 옵션 추가 🌟🌟🌟
-    st.dataframe(s_list, use_container_width=True, hide_index=True)
+    
+    # 🌟🌟🌟🌟🌟 스킬 현황 출력 우회 로직 🌟🌟🌟🌟🌟
+    if s_list.empty:
+        st.info("등록된 스킬 데이터가 없습니다. 사용자들이 스킬을 등록하도록 안내해주세요.")
+    else:
+        st.dataframe(s_list, use_container_width=True, hide_index=True)
     
     if st.button("채팅으로 돌아가기", key="close_admin_chat_btn"):
         st.session_state.show_admin = False
         st.rerun()
     
-    st.stop() # 관리자 화면이 켜지면 여기서 앱 실행을 멈춤
+    st.stop()
 # 8. 채팅 UI
 if not st.session_state.get("show_admin"):
 # 온보딩 가이드
