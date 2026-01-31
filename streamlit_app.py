@@ -12,18 +12,45 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. 커스텀 CSS
+# 2. 커스텀 CSS (UX/UI 디자인 개선)
 st.markdown("""
     <style>
-    .main { background-color: #f9f9fb; }
-    .stButton>button { border-radius: 8px; }
-    .stTextInput>div>div>input { border-radius: 8px; }
+    /* 전체 배경색 */
+    .stApp { background-color: #f8f9fa; }
+    
+    /* 채팅창 스타일링 */
+    .stChatMessage { 
+        padding: 1rem; 
+        border-radius: 15px; 
+        margin-bottom: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    /* 사용자 말풍선 (약간 진한 배경) */
+    .stChatMessage[data-testid="stChatMessageUser"] {
+        background-color: #e3f2fd;
+        border-left: 5px solid #42a5f5;
+    }
+    /* 코버디 말풍선 (흰색 배경) */
+    .stChatMessage[data-testid="stChatMessageAssistant"] {
+        background-color: #ffffff;
+        border-left: 5px solid #ffca28;
+    }
+    
+    /* 버튼 스타일 */
+    .stButton>button { 
+        border-radius: 20px; 
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        transform: scale(1.02);
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # 3. DB 및 세션 초기화
 db.init_db()
 
+# 세션 상태값 초기화
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "messages" not in st.session_state: st.session_state.messages = []
 if "show_admin" not in st.session_state: st.session_state.show_admin = False
@@ -59,7 +86,8 @@ if "code" in st.query_params and st.session_state.user_id is None:
 # 5. 로그인 전 화면
 if not st.session_state.user_id:
     st.markdown("<h1 style='text-align: center;'>🐣 코버디</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: gray;'>코딩 공부가 막막할 때, 당신의 곁을 지키는 성장 단짝</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #666; font-size: 1.1em;'>코딩 공부가 막막할 때, 당신의 곁을 지키는 성장 단짝</p>", unsafe_allow_html=True)
+    st.divider()
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -107,50 +135,39 @@ if st.session_state.user_id:
         st.markdown(f"### 👋 {st.session_state.user_nick}님 반가워요!")
         
         # A. API 키 설정
-        st.markdown("### 🔑 API 설정")
-        st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
-        
-        effective_key = st.session_state.user_key_value
-        
-        if st.session_state.show_key_input or not effective_key:
-            masked_key = "********" if effective_key else ""
-            user_input_key = st.text_input(
-                "Gemini API Key 입력", 
-                type="password", 
-                value=masked_key, 
-                key="user_gemini_key_input", 
-                help="여기에 키를 입력하거나 수정하세요."
-            )
+        with st.expander("🔑 API 설정", expanded=False):
+            st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요.")
             
-            if user_input_key and user_input_key != masked_key:
-                st.session_state.user_key_value = user_input_key 
-                st.session_state.show_key_input = False
-                st.rerun()
+            effective_key = st.session_state.user_key_value
             
-            if effective_key:
-                if st.button("입력 취소", key="cancel_key_input"):
+            if st.session_state.show_key_input or not effective_key:
+                masked_key = "********" if effective_key else ""
+                user_input_key = st.text_input("Gemini API Key", type="password", value=masked_key, key="user_gemini_key_input")
+                
+                if user_input_key and user_input_key != masked_key:
+                    st.session_state.user_key_value = user_input_key 
                     st.session_state.show_key_input = False
                     st.rerun()
-        else:
-            st.success("✅ API 키 적용 완료. (AI 기능 사용 가능)")
-            st.caption("키는 보안을 위해 숨김 처리되었습니다.")
-            if st.button("키 수정/변경", key="modify_key_btn"):
-                st.session_state.show_key_input = True
-                st.rerun()
+                
+                if effective_key:
+                    if st.button("취소", key="cancel_key_input"):
+                        st.session_state.show_key_input = False
+                        st.rerun()
+            else:
+                st.success("✅ API 키 적용됨")
+                if st.button("변경하기", key="modify_key_btn"):
+                    st.session_state.show_key_input = True
+                    st.rerun()
         
         user_key = effective_key
         st.divider()
 
         # B. PDF 업로드
         st.markdown("### 📚 스마트 PDF 학습")
-        st.info("여기에 공부할 PDF 파일을 올려주세요. 모든 파일이 누적되어 분석됩니다.")
+        st.info("여기에 PDF를 올려주세요. (다중 업로드 가능)")
         
         new_uploaded_files = st.file_uploader(
-            "파일 업로드 (PDF 전용)", 
-            type=["pdf"], 
-            key="pdf_uploader", 
-            accept_multiple_files=True, 
-            label_visibility="collapsed"
+            "파일 업로드", type=["pdf"], key="pdf_uploader", accept_multiple_files=True, label_visibility="collapsed"
         )
         
         if new_uploaded_files: 
@@ -162,15 +179,14 @@ if st.session_state.user_id:
 
             if newly_added:
                 st.session_state.uploaded_file_list.extend(newly_added)
-                with st.spinner(f"코버디가 {len(st.session_state.uploaded_file_list)}개 문서를 통합 분석 중... 📖"):
+                with st.spinner(f"📖 {len(newly_added)}개 문서를 추가 분석 중..."):
                     st.session_state.retriever = rag.process_multiple_pdfs(st.session_state.uploaded_file_list)
-                    st.success(f"✅ 총 {len(st.session_state.uploaded_file_list)}개 문서 통합 학습 완료!")
+                    st.success("학습 완료!")
                     
             if st.session_state.uploaded_file_list:
-                file_names = st.session_state.uploaded_file_list
-                st.caption(f"📍 현재 학습 중인 문서: {len(file_names)}개")
-                with st.expander("학습 문서 목록 보기"):
-                    for file in file_names:
+                st.caption(f"📍 현재 학습 문서: {len(st.session_state.uploaded_file_list)}개")
+                with st.expander("문서 목록 보기"):
+                    for file in st.session_state.uploaded_file_list:
                         st.write(f"- {file.name}")
 
         st.divider()
@@ -178,8 +194,8 @@ if st.session_state.user_id:
         # C. 관리자 메뉴
         is_admin = st.session_state.user_nick in ["안종호", "관리자"] 
         if is_admin:
-            st.markdown("### 👑 관리자 메뉴")
-            st.session_state.show_admin = st.checkbox("관리자 대시보드 보기", key="admin_chk", value=st.session_state.show_admin)
+            st.markdown("### 👑 관리자")
+            st.session_state.show_admin = st.checkbox("대시보드 보기", key="admin_chk", value=st.session_state.show_admin)
 
         st.divider()
         
@@ -195,22 +211,18 @@ if st.session_state.user_id:
         u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
         
         col1, col2 = st.columns(2)
-        with col1: st.metric("총 가입자 수", f"{u_cnt}명")
+        with col1: st.metric("총 가입자", f"{u_cnt}명")
         with col2: st.metric("총 등록 스킬", f"{s_cnt}개")
         
-        st.write("### 👥 사용자 목록")
-        if u_list.empty:
-            st.info("데이터가 없습니다.")
-        else:
-            st.dataframe(u_list, use_container_width=True, hide_index=True)
+        st.subheader("👥 사용자 목록")
+        if u_list.empty: st.info("데이터 없음")
+        else: st.dataframe(u_list, use_container_width=True, hide_index=True)
 
-        st.write("### 🛠️ 전체 사용자 스킬 현황")
-        if s_list.empty:
-            st.info("등록된 스킬이 없습니다.")
-        else:
-            st.dataframe(s_list, use_container_width=True, hide_index=True)
+        st.subheader("🛠️ 스킬 현황")
+        if s_list.empty: st.info("데이터 없음")
+        else: st.dataframe(s_list, use_container_width=True, hide_index=True)
         
-        if st.button("채팅으로 돌아가기", key="close_admin_chat_btn"):
+        if st.button("돌아가기", key="close_admin_chat_btn"):
             st.session_state.show_admin = False
             st.rerun()
         st.stop()
@@ -218,24 +230,32 @@ if st.session_state.user_id:
 
     # [메인 화면 2] 채팅 UI
     if not st.session_state.messages:
-        st.markdown("""
-            ### 👋 반가워요! 코버디와 이렇게 대화해보세요.
-            1. **스킬 관리**: `파이썬 5`라고 입력하면 실력을 저장해드려요. `목록`이라고 치면 확인 가능해요!
-            2. **실시간 추천**: `자바 프로젝트 추천해줘`라고 하면 GitHub, Reddit 등을 뒤져서 알려드려요.
-            3. **문서 학습**: 왼쪽에서 PDF를 올리면 그 내용으로 시험 공부나 질문을 할 수 있어요.
-        """)    
-        st.info("💡 팁: 아래 채팅창에 질문을 입력하거나 '파이썬 5'를 입력해 보세요.")
+        st.markdown(f"""
+            ### 👋 안녕하세요, {st.session_state.user_nick}님!
+            **코버디**는 여러분의 코딩 학습을 돕는 AI 멘토입니다. 무엇을 도와드릴까요?
+        """)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.info("📚 **스킬 관리**\n\n`파이썬 5` 처럼 입력하여 내 실력을 기록하세요.")
+        with col2:
+            st.success("🔍 **자료 추천**\n\n`자바 프로젝트 추천해줘` 라고 물어보세요.")
+        with col3:
+            st.warning("📄 **문서 질문**\n\n왼쪽에 PDF를 올리고 내용에 대해 질문하세요.")
 
+    # 대화 기록 표시 (아바타 적용)
     for m in st.session_state.messages:
-        with st.chat_message(m["role"]):
+        avatar_icon = "🧑‍💻" if m["role"] == "user" else "🐣"
+        with st.chat_message(m["role"], avatar=avatar_icon):
             st.markdown(m["content"])
 
+    # 사용자 입력 처리
     if prompt := st.chat_input("무엇이든 물어보세요!"):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
+        with st.chat_message("user", avatar="🧑‍💻"):
             st.markdown(prompt)
 
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar="🐣"):
             # 1. 스킬 목록
             if prompt in ["목록", "조회", "스킬", "내 스킬"]:
                 res = db.get_my_skills(st.session_state.user_id)
@@ -250,22 +270,32 @@ if st.session_state.user_id:
                 st.markdown(res)
                 st.session_state.messages.append({"role": "assistant", "content": res})
             
-            # 3. AI 답변 (실시간 스트리밍)
+            # 3. AI 답변 (상태 메시지 추가)
             else:
                 stream_generator = None
                 
+                # (A) 검색/추천 (시간이 걸리므로 상태창 표시)
                 if any(w in prompt for w in ["추천", "검색", "찾아줘", "자료"]):
-                    with st.spinner("🔍 최신 정보를 수집하고 있어요..."):
+                    # 🌟🌟🌟 상태창(status)으로 진행 상황을 시각적으로 보여줌 🌟🌟🌟
+                    with st.status("🔍 전 세계 개발자 커뮤니티를 검색 중입니다...", expanded=True) as status:
+                        st.write("GitHub 탐색 중...")
+                        st.write("HuggingFace 모델 확인 중...")
                         stream_generator = ai.search_all_platforms(prompt, user_key)
+                        status.update(label="✅ 자료 수집 완료! 답변을 작성합니다.", state="complete", expanded=False)
                 
+                # (B) PDF 질문
                 elif "retriever" in st.session_state and st.session_state.retriever:
-                    with st.spinner("📄 문서 내용을 분석 중..."):
+                    # 🌟🌟🌟 스피너로 분석 중임을 표시 🌟🌟🌟
+                    with st.spinner("📄 문서를 꼼꼼히 읽고 있어요..."):
                         docs = st.session_state.retriever.invoke(prompt)
                         ctx = "\n".join([d.page_content for d in docs])
                         stream_generator = ai.ask_ai_stream(f"문서 내용:\n{ctx}\n\n질문: {prompt}", user_key)
                 
+                # (C) 일반 대화
                 else:
-                    stream_generator = ai.ask_ai_stream(prompt, user_key)
+                    # 🌟🌟🌟 일반 대화도 짧은 스피너 표시 🌟🌟🌟
+                    with st.spinner("코버디가 생각 중... 🐣"):
+                        stream_generator = ai.ask_ai_stream(prompt, user_key)
                 
                 if stream_generator:
                     full_response = st.write_stream(stream_generator)
