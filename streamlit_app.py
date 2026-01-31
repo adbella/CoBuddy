@@ -149,27 +149,55 @@ if st.session_state.user_id: # 로그인 성공 후
         
         st.divider()
 
-        # PDF 업로드 영역 (UI 개선)
-        st.markdown("### 📚 스마트 PDF 학습")
-        st.info("여기에 공부할 PDF 파일을 올려주세요. 코버디가 분석해 드릴게요!")
-        
-        pdf_file = st.file_uploader(
-            "파일 업로드 (PDF 전용)", 
-            type=["pdf"], 
-            key="pdf_uploader",
-            label_visibility="collapsed"
-        )
-        
-        if pdf_file:
-            if "cur_pdf" not in st.session_state or st.session_state.cur_pdf != pdf_file.name:
-                with st.spinner("코버디가 문서를 읽고 있어요... 📖"):
-                    st.session_state.retriever = rag.process_multiple_pdfs([pdf_file]) # 단일 파일도 리스트로 넘김
-                    st.session_state.cur_pdf = pdf_file.name
-                    st.success(f"✅ 학습 완료: {pdf_file.name}")
-            else:
-                st.caption(f"📍 현재 학습 중: {pdf_file.name}")
+    # PDF 업로드 영역 (UI 개선)
+    st.markdown("### 📚 스마트 PDF 학습")
+    st.info("여기에 공부할 PDF 파일을 올려주세요. 모든 파일이 누적되어 분석됩니다.") # 문구 수정
+    
+    # 세션 상태에 파일 리스트 초기화
+    if "uploaded_file_list" not in st.session_state:
+        st.session_state.uploaded_file_list = []
+        st.session_state.processed_file_names = set() # 처리 완료된 파일 이름 목록
 
-        st.divider()
+    # 🌟🌟🌟 다중 파일 업로더 (여러 파일 선택 가능) 🌟🌟🌟
+    new_uploaded_files = st.file_uploader(
+        "파일 업로드 (PDF 전용)", 
+        type=["pdf"], 
+        key="pdf_uploader",
+        accept_multiple_files=True, # 다중 파일 업로드 허용
+        label_visibility="collapsed"
+    )
+    
+    # 🌟🌟🌟 파일 처리 로직 🌟🌟🌟
+    if new_uploaded_files: 
+        # 새로 업로드된 파일이 있다면 처리
+        newly_added = []
+        for file in new_uploaded_files:
+            # 아직 처리되지 않은 파일만 리스트에 추가
+            if file.name not in st.session_state.processed_file_names:
+                newly_added.append(file)
+                st.session_state.processed_file_names.add(file.name)
+
+        if newly_added:
+            # 1. 새로 추가된 파일들을 기존 리스트에 합침
+            st.session_state.uploaded_file_list.extend(newly_added)
+            
+            # 2. 통합 분석 시작
+            with st.spinner(f"코버디가 {len(st.session_state.uploaded_file_list)}개 문서를 통합 분석 중... 📖"):
+                # 통합 분석 함수 호출 (업로드된 전체 리스트 전달)
+                st.session_state.retriever = rag.process_multiple_pdfs(st.session_state.uploaded_file_list)
+                st.success(f"✅ 총 {len(st.session_state.uploaded_file_list)}개 문서 통합 학습 완료!")
+                
+        # 현재 학습 상태 표시
+        if st.session_state.uploaded_file_list:
+            file_names = st.session_state.uploaded_file_list
+            st.caption(f"📍 현재 학습 중인 문서: {len(file_names)}개")
+            
+            # 리스트를 보여주는 확장 메뉴 (선택사항)
+            with st.expander("학습 문서 목록 보기"):
+                for file in file_names:
+                    st.write(f"- {file.name}")
+                    
+    # ... (나머지 코드 생략)
 
         # 관리자 메뉴
         is_admin = st.session_state.user_nick in ["안종호"] 
