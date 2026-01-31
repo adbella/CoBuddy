@@ -172,21 +172,9 @@ if st.session_state.user_id:
             st.session_state.clear()
             st.rerun()
 
-    # [메인 화면 1] 관리자 대시보드
-    if st.session_state.get("show_admin"):
-        st.title("📊 Admin Dashboard")
-        u_cnt, s_cnt, u_list, s_list = db.get_admin_stats()
-        col1, col2 = st.columns(2)
-        with col1: st.metric("Users", f"{u_cnt}")
-        with col2: st.metric("Skills", f"{s_cnt}")
-        st.subheader("👥 User List"); st.dataframe(u_list, use_container_width=True, hide_index=True)
-        st.subheader("🛠️ Skills"); st.dataframe(s_list, use_container_width=True, hide_index=True)
-        if st.button("Close", key="close_admin_chat_btn"):
-            st.session_state.show_admin = False
-            st.rerun()
-        st.stop()
-
-    # [메인 화면 2] 채팅 UI
+    # --- 8. 채팅 UI 및 입력 처리 ---
+if not st.session_state.get("show_admin"):
+    # 온보딩 가이드
     if not st.session_state.messages:
         st.markdown(f"### {t('chat_guide_title')} {st.session_state.user_nick}!\n{t('chat_guide_desc')}")
         c1, c2, c3 = st.columns(3)
@@ -194,63 +182,71 @@ if st.session_state.user_id:
         with c2: st.success(t('guide_search'))
         with c3: st.warning(t('guide_doc'))
 
+    # 기존 대화 기록 출력
     for m in st.session_state.messages:
-        with st.chat_message(m["role"], avatar="🧑‍💻" if m["role"] == "user" else "🐣"): st.markdown(m["content"])
+        with st.chat_message(m["role"], avatar="🧑‍💻" if m["role"] == "user" else "🐣"):
+            st.markdown(m["content"])
 
-def t(key):
-    """현재 언어에 맞는 텍스트 반환 (키가 없으면 키 이름을 그대로 반환해서 에러 방지)"""
-    return TRANS[st.session_state.language].get(key, f"[{key}]")
+    # 새로운 사용자 입력 처리
+    if prompt := st.chat_input(t('chat_placeholder')):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user", avatar="🧑‍💻"):
+            st.markdown(prompt)
 
-if prompt := st.chat_input(t('chat_placeholder')):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user", avatar="🧑‍💻"):
-        st.markdown(prompt)
-
-    with st.chat_message("assistant", avatar="🐣"):
-        # 🌟 응답이 오기 전까지 보여줄 상태 메시지 창
-        status_placeholder = st.empty()
-        status_placeholder.write(f"_{t('status_thinking')}_")
-        
-        lang_instruction = f"\n\n(Please answer in {t('prompt_lang')}. Use clear markdown tables if needed.)"
-        final_prompt = prompt + lang_instruction
-        
-        # 1. 스킬 목록 조회
-        if prompt in ["목록", "조회", "스킬", "내 스킬", "list", "skill", "skills"]:
-            status_placeholder.write(f"_{t('status_db_checking')}_")
-            res = db.get_my_skills(st.session_state.user_id)
-            status_placeholder.empty() # 상태 메시지 지우기
-            st.markdown(res)
-            st.session_state.messages.append({"role": "assistant", "content": res})
-        
-        # 2. 스킬 저장
-        elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
-            status_placeholder.write(f"_{t('status_skill_saving')}_")
-            s, l = prompt.split()
-            db.save_skill(st.session_state.user_id, s, int(l))
-            res = t('save_skill').format(s=s, l=l)
-            status_placeholder.empty() # 상태 메시지 지우기
-            st.markdown(res)
-            st.session_state.messages.append({"role": "assistant", "content": res})
-        
-        # 3. AI 답변 (검색, PDF, 일반)
-        else:
-            stream_generator = None
-            if any(w in prompt.lower() for w in ["추천", "검색", "찾아줘", "자료", "recommend", "search", "find"]):
-                status_placeholder.empty() # 중복 방지를 위해 지움
-                with st.status(t('ai_searching')) as status:
-                    stream_generator = ai.search_all_platforms(final_prompt, user_key)
-                    status.update(label="Done!", state="complete", expanded=False)
-            elif "retriever" in st.session_state and st.session_state.retriever:
-                status_placeholder.write(f"_{t('ai_reading')}_")
-                docs = st.session_state.retriever.invoke(prompt)
-                ctx = "\n".join([d.page_content for d in docs])
-                status_placeholder.empty()
-                stream_generator = ai.ask_ai_stream(f"Context:\n{ctx}\n\nQuestion: {final_prompt}", user_key)
-            else:
-                status_placeholder.write(f"_{t('status_ai_calling')}_")
-                stream_generator = ai.ask_ai_stream(final_prompt, user_key)
-                status_placeholder.empty()
+        with st.chat_message("assistant", avatar="🐣"):
+            # 🌟 [상태 안내] 응답 시작 전 공통 안내
+            status_placeholder = st.empty()
+            status_placeholder.write(f"_{t('status_thinking')}_")
             
-            if stream_generator:
-                full_response = st.write_stream(stream_generator)
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
+            lang_instruction = f"\n\n(Please answer in {t('prompt_lang')}. Use clear markdown tables if needed.)"
+            final_prompt = prompt + lang_instruction
+            
+            res_text = None
+            stream_gen = None
+
+            # 1. 스킬 목록 조회 (DB)
+            if prompt in ["목록", "조회", "스킬", "내 스킬", "list", "skill", "skills"]:
+                status_placeholder.write(f"_{t('status_db_checking')}_")
+                res_text = db.get_my_skills(st.session_state.user_id)
+                status_placeholder.empty()
+                st.markdown(res_text)
+
+            # 2. 스킬 저장 (DB)
+            elif len(prompt.split()) == 2 and prompt.split()[1].isdigit():
+                status_placeholder.write(f"_{t('status_skill_saving')}_")
+                s, l = prompt.split()
+                db.save_skill(st.session_state.user_id, s, int(l))
+                res_text = t('save_skill').format(s=s, l=l)
+                status_placeholder.empty()
+                st.markdown(res_text)
+
+            # 3. AI 답변 (추천 검색 / PDF / 일반 대화)
+            else:
+                # (A) 추천 및 플랫폼 검색
+                if any(w in prompt.lower() for w in ["추천", "검색", "찾아줘", "자료", "recommend", "search", "find"]):
+                    status_placeholder.empty() # st.status와 겹치지 않게 제거
+                    # st.status를 한글화된 완료 문구와 함께 사용
+                    with st.status(t('ai_searching'), expanded=True) as status_box:
+                        stream_gen = ai.search_all_platforms(final_prompt, user_key)
+                        status_box.update(label=t('pdf_done'), state="complete", expanded=False)
+                
+                # (B) PDF 문서 기반 질문
+                elif "retriever" in st.session_state and st.session_state.retriever:
+                    status_placeholder.write(f"_{t('ai_reading')}_") # "문서를 꼼꼼히 읽고 있어요..."
+                    docs = st.session_state.retriever.invoke(prompt)
+                    ctx = "\n".join([d.page_content for d in docs])
+                    stream_gen = ai.ask_ai_stream(f"Context:\n{ctx}\n\nQuestion: {final_prompt}", user_key)
+                
+                # (C) 일반 AI 대화
+                else:
+                    status_placeholder.write(f"_{t('status_ai_calling')}_") # "AI 멘토와 대화 내용을 정리하고 있습니다..."
+                    stream_gen = ai.ask_ai_stream(final_prompt, user_key)
+
+                # 🌟 실시간 타이핑 출력 시작 🌟
+                if stream_gen:
+                    status_placeholder.empty() # 출력이 시작되기 직전에 로딩 문구 제거
+                    res_text = st.write_stream(stream_gen)
+
+            # 세션에 최종 응답 저장
+            if res_text:
+                st.session_state.messages.append({"role": "assistant", "content": res_text})
