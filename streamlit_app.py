@@ -5,7 +5,7 @@ import rag_utils as rag
 import urllib.parse
 import requests
 
-# 1. 페이지 설정
+# 1. 페이지 설정 (반드시 코드 최상단에 위치)
 st.set_page_config(page_title="코버디 🐣", layout="wide")
 
 # 2. 데이터베이스 초기화
@@ -46,7 +46,7 @@ if "code" in st.query_params and st.session_state.user_id is None:
             st.query_params.clear()
             st.rerun()
     except Exception as e:
-        st.error(f"구글 로그인 처리 중 오류 발생: {e}")
+        st.error(f"구글 로그인 오류: {e}")
 
 # 5. 로그인 전 화면
 if not st.session_state.user_id:
@@ -55,8 +55,8 @@ if not st.session_state.user_id:
     
     with tab1:
         with st.form("login_form"):
-            login_nick = st.text_input("닉네임", key="login_nick_input")
-            login_pw = st.text_input("비밀번호", type="password", key="login_pw_input")
+            login_nick = st.text_input("닉네임", key="login_nick_in")
+            login_pw = st.text_input("비밀번호", type="password", key="login_pw_in")
             if st.form_submit_button("로그인 🚀"):
                 user = db.authenticate_user(login_nick, login_pw)
                 if user:
@@ -64,22 +64,22 @@ if not st.session_state.user_id:
                     st.session_state.user_nick = login_nick
                     st.rerun()
                 else:
-                    st.error("닉네임 또는 비밀번호를 확인해주세요.")
+                    st.error("닉네임 또는 비밀번호가 틀렸습니다.")
 
     with tab2:
         with st.form("signup_form"):
-            new_nick = st.text_input("사용할 닉네임", key="signup_nick_input")
-            new_pw = st.text_input("비밀번호 (6자 이상)", type="password", key="signup_pw_input")
-            confirm_pw = st.text_input("비밀번호 확인", type="password", key="signup_confirm_pw")
+            new_nick = st.text_input("사용할 닉네임", key="signup_nick_in")
+            new_pw = st.text_input("비밀번호 (6자 이상)", type="password", key="signup_pw_in")
+            confirm_pw = st.text_input("비밀번호 확인", type="password", key="signup_confirm")
             if st.form_submit_button("회원가입 완료 ✨"):
                 if len(new_nick) < 2 or len(new_pw) < 6:
-                    st.warning("닉네임은 2자, 비밀번호는 6자 이상 입력해주세요.")
+                    st.warning("닉네임은 2자, 비밀번호는 6자 이상이어야 합니다.")
                 elif new_pw != confirm_pw:
-                    st.error("비밀번호가 일치하지 않습니다.")
+                    st.error("비밀번호가 서로 다릅니다.")
                 else:
                     success, msg = db.create_user(new_nick, new_pw)
                     if success:
-                        st.success("회원가입 성공! 로그인 탭에서 로그인해주세요.")
+                        st.success("가입 성공! 로그인 탭에서 로그인 해주세요.")
                     else:
                         st.error(msg)
 
@@ -96,9 +96,9 @@ if not st.session_state.user_id:
             auth_url = f"https://accounts.google.com/o/oauth2/auth?{urllib.parse.urlencode(params)}"
             st.link_button("🔵 구글 계정으로 로그인", auth_url, use_container_width=True)
         else:
-            st.info("💡 구글 로그인 설정(Secrets)을 확인해주세요.")
+            st.info("💡 구글 로그인 설정이 필요합니다.")
     st.stop()
-
+    
 # 6. 로그인 후 메인 화면 (사이드바)
 with st.sidebar:
     st.write(f"### 👋 {st.session_state.user_nick}님 반가워요!")
