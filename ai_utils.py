@@ -17,17 +17,20 @@ def ask_ai(prompt, user_key=None):
     
     try:
         client = Client(api_key=api_key)
+        # 🌟🌟🌟 404 에러 우회 및 최신 모델 gemini-2.5-flash 사용 🌟🌟🌟
         response = client.models.generate_content(
-            model='gemini-pro',
+            model='gemini-2.5-flash', # 모델 고정
             contents=prompt,
             config={'temperature': 0.7}
         )
         return response.text
         
     except APIError as e:
-        # 에러 발생 시, 키 길이를 알려줍니다.
         key_len = len(api_key)
-        return f"❌ AI 호출 실패: API 오류 발생. 키 길이: {key_len} (에러: {e})"
+        # 키 유효성 검사 로직 추가 (키 길이가 짧으면 확실히 에러)
+        if key_len < 30:
+            return f"❌ API 키 길이가 너무 짧습니다. 키가 유효한지 확인해주세요. (길이: {key_len})"
+        return f"❌ AI 호출 실패: 모델 경로 인식 오류 (404). 키 길이는 정상. (에러: {e})"
     except Exception as e:
         return f"❌ AI 호출 실패: 예상치 못한 오류 발생. (에러: {e})"
 

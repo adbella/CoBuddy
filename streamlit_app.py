@@ -95,13 +95,23 @@ with st.sidebar:
     
     # AI 설정
     st.markdown("### 🔑 API 설정")
-    user_key = st.text_input("Gemini API Key 입력", type="password", key="user_gemini_key", help="Google AI Studio에서 발급받은 API 키를 입력하세요.")
-    st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
+    default_key = st.secrets.get("GOOGLE_API_KEY", "")
     
-    # 🌟🌟🌟 유효성 체크 로직을 간단한 존재 유무 체크로 대체 🌟🌟🌟
-    has_api_key = user_key or st.secrets.get("GOOGLE_API_KEY")
-    if has_api_key:
-        st.success("✅ API 키 입력 확인됨. (AI 기능 사용 가능)")
+    # 🌟🌟🌟 key="user_gemini_key"를 사용하여 값이 세션에 유지되도록 함 🌟🌟🌟
+    user_key = st.text_input(
+        "Gemini API Key 입력", 
+        type="password", 
+        value=default_key, # Secrets의 키를 기본값으로 사용
+        key="user_gemini_key_input", # 고유한 새 키 사용
+        help="Google AI Studio에서 발급받은 API 키를 여기에 입력/수정하세요."
+    )
+    st.markdown("**:red[키가 없으신가요?]** [**여기**](https://aistudio.google.com/app/apikey)서 만드세요. 👈")
+
+    # 🌟🌟🌟 키가 Secrets에 있거나 사용자가 입력했는지 확인 🌟🌟🌟
+    effective_key = user_key if user_key else default_key
+    
+    if effective_key:
+        st.success("✅ API 키 유효성 검사 준비 완료. (AI 기능 사용 가능)")
     else:
         st.info("💡 키를 입력하지 않으면 AI 기능이 작동하지 않습니다.")
     
