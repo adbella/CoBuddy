@@ -221,6 +221,10 @@ if st.session_state.user_id:
             st.markdown(prompt)
 
         with st.chat_message("assistant", avatar="🐣"):
+            status_placeholder = st.empty()
+            with status_placeholder:
+                st.write(f"_{t('status_thinking')}_")
+            
             lang_instruction = f"\n\n(Please answer in {t('prompt_lang')}. Use clear markdown tables if needed.)"
             final_prompt = prompt + lang_instruction
             
@@ -229,6 +233,7 @@ if st.session_state.user_id:
 
             # A. 스킬 관련 (DB)
             if prompt in ["목록", "조회", "스킬", "내 스킬", "list", "skill", "skills"] or (len(prompt.split()) == 2 and prompt.split()[1].isdigit()):
+                status_placeholder.empty()
                 if prompt in ["목록", "조회", "스킬", "내 스킬", "list", "skill", "skills"]:
                     with st.spinner(t('status_skill_loading')):
                         res_text = db.get_my_skills(st.session_state.user_id)
@@ -242,14 +247,17 @@ if st.session_state.user_id:
             # B. AI 관련 (Streaming)
             else:
                 if any(w in prompt.lower() for w in ["추천", "검색", "찾아줘", "자료", "recommend", "search", "find"]):
+                    status_placeholder.empty()
                     with st.spinner(t('status_searching')):
                         stream_gen = ai.search_all_platforms(final_prompt, user_key)
                 elif "retriever" in st.session_state and st.session_state.retriever:
+                    status_placeholder.empty()
                     with st.spinner(t('status_reading')):
                         docs = st.session_state.retriever.invoke(prompt)
                         ctx = "\n".join([d.page_content for d in docs])
                         stream_gen = ai.ask_ai_stream(f"Context:\n{ctx}\n\nQuestion: {final_prompt}", user_key)
                 else:
+                    status_placeholder.empty()
                     with st.spinner(t('status_ai_calling')):
                         stream_gen = ai.ask_ai_stream(final_prompt, user_key)
 
