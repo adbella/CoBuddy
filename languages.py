@@ -48,10 +48,37 @@ TRANS = {
         "status_thinking": "잠시만요, 요청하신 내용을 확인하고 있어요... 🤔",
         "status_db_checking": "데이터베이스에서 정보를 찾는 중입니다... 🗄️",
         "status_skill_saving": "새로운 성취를 기록하고 있습니다! ✨",
+        "status_skill_loading": "보유하신 스킬 목록을 불러오고 있어요... 📚",
         "status_ai_calling": "AI 멘토와 대화 내용을 정리하고 있습니다... 🐣",
+        "status_searching": "전 세계의 유익한 자료들을 찾아보고 있어요... 🔍",
+        "status_reading": "업로드해주신 문서를 꼼꼼히 읽고 답변을 준비 중이에요... 📄",
         "api_limit_reached": "⚠️ 시스템 API 할당량이 초과되었습니다! 계속 대화하시려면 [API 설정]에서 본인의 키를 입력해주세요."
     },
     "EN": {
+>>>>>>>------- SEARCH
+        # --- Status Messages ---
+        "status_thinking": "Wait a second, checking your request... 🤔",
+        "status_db_checking": "Checking information from the database... 🗄️",
+        "status_skill_saving": "Recording your new achievement! ✨",
+        "status_ai_calling": "Organizing the conversation with the AI mentor... 🐣",
+        "status_done": "Done! ✨",
+        "pdf_done": "Analysis Complete!",
+        "api_limit_reached": "⚠️ System API limit reached! Please enter your own key in [API Setup] to continue."
+    }
+}
+        # --- Status Messages ---
+        "status_thinking": "Wait a second, checking your request... 🤔",
+        "status_db_checking": "Checking information from the database... 🗄️",
+        "status_skill_saving": "Recording your new achievement! ✨",
+        "status_skill_loading": "Loading your skill list... 📚",
+        "status_ai_calling": "Organizing the conversation with the AI mentor... 🐣",
+        "status_searching": "Searching for helpful resources worldwide... 🔍",
+        "status_reading": "Reading your documents and preparing an answer... 📄",
+        "status_done": "Done! ✨",
+        "pdf_done": "Analysis Complete!",
+        "api_limit_reached": "⚠️ System API limit reached! Please enter your own key in [API Setup] to continue."
+    }
+}
         "title": "🐣 CoBuddy",
         "subtitle": "Your Coding Growth Partner",
         "login_tab": "🔒 Login",

@@ -232,13 +232,14 @@ if st.session_state.user_id:
 
             # A. 스킬 관련 (DB)
             if prompt in ["목록", "조회", "스킬", "내 스킬", "list", "skill", "skills"] or (len(prompt.split()) == 2 and prompt.split()[1].isdigit()):
-                status_placeholder.write(f"_{t('status_db_checking')}_")
                 if prompt in ["목록", "조회", "스킬", "내 스킬", "list", "skill", "skills"]:
-                    res_text = db.get_my_skills(st.session_state.user_id)
+                    with st.spinner(t('status_skill_loading')):
+                        res_text = db.get_my_skills(st.session_state.user_id)
                 else:
-                    s, l = prompt.split()
-                    db.save_skill(st.session_state.user_id, s, int(l))
-                    res_text = t('save_skill').format(s=s, l=l)
+                    with st.spinner(t('status_skill_saving')):
+                        s, l = prompt.split()
+                        db.save_skill(st.session_state.user_id, s, int(l))
+                        res_text = t('save_skill').format(s=s, l=l)
                 status_placeholder.empty()
                 st.markdown(res_text)
 
@@ -246,18 +247,20 @@ if st.session_state.user_id:
             else:
                 if any(w in prompt.lower() for w in ["추천", "검색", "찾아줘", "자료", "recommend", "search", "find"]):
                     status_placeholder.empty()
-                    with st.status(t('ai_searching'), expanded=True) as status_box:
+                    with st.status(t('status_searching'), expanded=True) as status_box:
                         stream_gen = ai.search_all_platforms(final_prompt, user_key)
                         status_box.update(label=t('status_done'), state="complete", expanded=False)
                 elif "retriever" in st.session_state and st.session_state.retriever:
-                    status_placeholder.write(f"_{t('ai_reading')}_")
-                    docs = st.session_state.retriever.invoke(prompt)
-                    ctx = "\n".join([d.page_content for d in docs])
-                    status_placeholder.empty()
-                    stream_gen = ai.ask_ai_stream(f"Context:\n{ctx}\n\nQuestion: {final_prompt}", user_key)
+                    status_placeholder.write(f"_{t('status_reading')}_")
+                    with st.spinner(t('status_reading')):
+                        docs = st.session_state.retriever.invoke(prompt)
+                        ctx = "\n".join([d.page_content for d in docs])
+                        status_placeholder.empty()
+                        stream_gen = ai.ask_ai_stream(f"Context:\n{ctx}\n\nQuestion: {final_prompt}", user_key)
                 else:
                     status_placeholder.write(f"_{t('status_ai_calling')}_")
-                    stream_gen = ai.ask_ai_stream(final_prompt, user_key)
+                    with st.spinner(t('status_ai_calling')):
+                        stream_gen = ai.ask_ai_stream(final_prompt, user_key)
                     status_placeholder.empty()
 
                 if stream_gen:
