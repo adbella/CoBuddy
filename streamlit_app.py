@@ -221,9 +221,6 @@ if st.session_state.user_id:
             st.markdown(prompt)
 
         with st.chat_message("assistant", avatar="🐣"):
-            status_placeholder = st.empty()
-            status_placeholder.write(f"_{t('status_thinking')}_")
-            
             lang_instruction = f"\n\n(Please answer in {t('prompt_lang')}. Use clear markdown tables if needed.)"
             final_prompt = prompt + lang_instruction
             
@@ -240,28 +237,21 @@ if st.session_state.user_id:
                         s, l = prompt.split()
                         db.save_skill(st.session_state.user_id, s, int(l))
                         res_text = t('save_skill').format(s=s, l=l)
-                status_placeholder.empty()
                 st.markdown(res_text)
 
             # B. AI 관련 (Streaming)
             else:
                 if any(w in prompt.lower() for w in ["추천", "검색", "찾아줘", "자료", "recommend", "search", "find"]):
-                    status_placeholder.empty()
-                    with st.status(t('status_searching'), expanded=True) as status_box:
+                    with st.spinner(t('status_searching')):
                         stream_gen = ai.search_all_platforms(final_prompt, user_key)
-                        status_box.update(label=t('status_done'), state="complete", expanded=False)
                 elif "retriever" in st.session_state and st.session_state.retriever:
-                    status_placeholder.write(f"_{t('status_reading')}_")
                     with st.spinner(t('status_reading')):
                         docs = st.session_state.retriever.invoke(prompt)
                         ctx = "\n".join([d.page_content for d in docs])
-                        status_placeholder.empty()
                         stream_gen = ai.ask_ai_stream(f"Context:\n{ctx}\n\nQuestion: {final_prompt}", user_key)
                 else:
-                    status_placeholder.write(f"_{t('status_ai_calling')}_")
                     with st.spinner(t('status_ai_calling')):
                         stream_gen = ai.ask_ai_stream(final_prompt, user_key)
-                    status_placeholder.empty()
 
                 if stream_gen:
                     res_text = st.write_stream(stream_gen)
